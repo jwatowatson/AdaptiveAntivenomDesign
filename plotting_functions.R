@@ -77,10 +77,10 @@ compare_rule_vs_model = function(sim_title,
   
   
   # uncertainty interval quantiles (upper and lower)
-  qu=.9
-  ql=.1
+  qu=.95
+  ql=.05
   
-  par(mfrow=c(2,2), las=1, bty='n', family = 'serif', cex.lab=1.5, cex.axis=1.5, mar=c(4,5,3,2))
+  par(mfrow=c(2,2), las=1, bty='n', family = 'serif', cex.lab=1.5, cex.axis=1.5, mar=c(5,5,4,2))
   # ******* Plot the prior versus the simulation truth *********
   plot_prior_versus_truth(model_params_true = model_params_true,
                           prior_model_params = prior_model_params,
@@ -110,22 +110,29 @@ compare_rule_vs_model = function(sim_title,
   
   abline(h = c(out$MTD,out$TED),col=mypallete[c(1,3)], lwd=2)
   
+  polygon(x = c(1:nrow(Summary_MTD),rev(1:nrow(Summary_MTD))), 
+          y = c(q_upperMTD, rev(q_lowerMTD)), 
+          col = adjustcolor(mypallete[5],alpha.f = .2), border = NA)
   lines(1:nrow(Summary_MTD), log2(apply(Summary_MTD, 1, mean, na.rm=T)),
         lwd=3,col=mypallete[5],lty=3)
-  lines(1:nrow(Summary_MTD), q_upperMTD, lwd=1, lty=3, col=mypallete[5])
-  lines(1:nrow(Summary_MTD), q_lowerMTD, lwd=1, lty=3, col=mypallete[5])
+  # lines(1:nrow(Summary_MTD), q_upperMTD, lwd=1, lty=3, col=mypallete[5])
+  # lines(1:nrow(Summary_MTD), q_lowerMTD, lwd=1, lty=3, col=mypallete[5])
   
+  polygon(x = c(1:nrow(Summary_TED),rev(1:nrow(Summary_TED))), 
+          y = c(q_upperTED, rev(q_lowerTED)), 
+          col = adjustcolor(mypallete[8],alpha.f = .2), border = NA)
   lines(1:nrow(Summary_TED), log2(apply(Summary_TED, 1, mean, na.rm=T)),
         lwd=3,col=mypallete[8],lty=3)
-  lines(1:nrow(Summary_TED), q_upperTED, lwd=1, lty=3, col=mypallete[8])
-  lines(1:nrow(Summary_TED), q_lowerTED, lwd=1, lty=3, col=mypallete[8])
+  # lines(1:nrow(Summary_TED), q_upperTED, lwd=1, lty=3, col=mypallete[8])
+  # lines(1:nrow(Summary_TED), q_lowerTED, lwd=1, lty=3, col=mypallete[8])
   
-  legend('topright', legend = c('MTD','TED'), col=mypallete[c(5,8)],
-         lwd = c(2,2), inset=0.01, bty='y', bg = 'white')
+  legend('topright', legend = c('true MTD','true TED', 'estimated MTD','estimated MTD'), 
+         col=mypallete[c(1,3,5,8)], lty=c(1,1,3,3),
+         lwd = c(2,2,3,3), inset=0.01, bty='y', bg = 'white')
   mtext(text = 'b',side = 3,line = 2,at = 0,cex = 2)
   
   # ******* Plot the assigned doses *******
-  mypallete = brewer.pal(9,'Set1')[c(1,4,7)]
+  mypallete = brewer.pal(9,'Set1')[c(1,2,7)]
   
   cols_assigned_dose_model = grep('assigned_dose', colnames(Summary_model))
   cols_assigned_dose_rule = grep('assigned_dose', colnames(Summary_rule))
@@ -141,27 +148,34 @@ compare_rule_vs_model = function(sim_title,
        type='n', main = '', 
        ylim=range(c(q_upper_rule,q_lower_rule,q_upper_model,q_lower_model)),
        xlim=c(1,nrow(Summary_assigned_model)),
-       xlab = 'Patient recruitment index', ylab = 'Assigned dose (mL)')
+       xlab = 'Patient recruitment index', ylab = 'Dose (mL)')
   mtext(text = 'c',side = 3,line = 2,at = 0,cex = 2)
   
   abline(h = vstar,col=mypallete[1],lwd=3)
   
-  lines(1:nrow(Summary_assigned_model), apply(Summary_assigned_model, 1, median, na.rm=T),
+  polygon(x = c(1:nrow(Summary_assigned_model),rev(1:nrow(Summary_assigned_model))), 
+          y = c(q_upper_model, rev(q_lower_model)), 
+          col = adjustcolor(mypallete[2],alpha.f = .2), border = NA)
+  polygon(x = c(1:nrow(Summary_assigned_model),rev(1:nrow(Summary_assigned_model))), 
+          y = c(q_upper_rule, rev(q_lower_rule)), 
+          col = adjustcolor(mypallete[3],alpha.f = .2), border = NA)
+  
+  lines(1:nrow(Summary_assigned_model), apply(Summary_assigned_model, 1, mean, na.rm=T),
         col=mypallete[2], lwd=2)
-  lines(1:nrow(Summary_assigned_model), q_upper_model, lwd=1, lty=2, col=mypallete[2])
-  lines(1:nrow(Summary_assigned_model), q_lower_model, lwd=1, lty=2, col=mypallete[2])
   
-  lines(1:nrow(Summary_assigned_rule), apply(Summary_assigned_rule, 1, median, na.rm=T),
+  lines(1:nrow(Summary_assigned_rule), apply(Summary_assigned_rule, 1, mean, na.rm=T),
         col=mypallete[3], lwd=2)
-  lines(1:nrow(Summary_assigned_rule), q_upper_rule, lwd=1, lty=2, col=mypallete[3])
-  lines(1:nrow(Summary_assigned_rule), q_lower_rule, lwd=1, lty=2, col=mypallete[3])
   
-  legend('topleft', legend = c('median value','5&95 quantiles'), 
-         lwd = c(2,1), lty=c(1,2), inset=0.01, bty='y', bg = 'white')
+  legend('topleft', legend = c('Model-based','Rule-based'), title = 'Assigned dose',
+         lwd = 2, lty=1, inset=0.01, bty='y', bg = 'white', col=mypallete[c(2,3)])
   
   # ******* Compare final doses: histogram *******
   # Histogram of final assigned dose
   Summary_assigned_model[nrow(Summary_assigned_model), ] = apply(Summary_assigned_model,2,function(x){
+    y= rev(x[complete.cases(x)])
+    return(y[1])
+  } )
+  Summary_assigned_rule[nrow(Summary_assigned_rule), ] = apply(Summary_assigned_rule,2,function(x){
     y= rev(x[complete.cases(x)])
     return(y[1])
   } )
@@ -185,6 +199,10 @@ compare_rule_vs_model = function(sim_title,
        breaks = my_breaks)
   abline(v=vstar, col=mypallete[1],lwd=3)
   mtext(text = 'd',side = 3,line = 2,at = min_v,cex = 2)
+  
+  legend('topright', legend = c('Model-based','Rule-based'), title = 'Final dose',
+        inset=0.01, bty='y', bg = 'white', 
+        fill= adjustcolor(mypallete[c(2,3)],alpha.f = .3))
   
   within10percent_rule = round(100*mean(last_dose_rule >= vstar-.1*vstar & last_dose_rule <= vstar+.1*vstar))
   within10percent_model = round(100*mean(last_dose_model >= vstar-.1*vstar & last_dose_model <= vstar+.1*vstar))

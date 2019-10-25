@@ -93,7 +93,7 @@ run_trial = function(model_params_true, prior_model_params, N_max=200,
 ## Run a single trial under the rule-based design (3+3 type trial)
 run_3plus3_trial = function(model_params_true, N_max = 200, 
                             starting_dose=8, N_batch=3, max_increment,
-                            MTT, TEL, epsilon, p){
+                            MTT, TEL, epsilon, p, SoC){
   
   # Set up parameters and choose the optimal dose based on the prior
   N_current = 0
@@ -106,7 +106,7 @@ run_3plus3_trial = function(model_params_true, N_max = 200,
                                    log2_dose = log2(current_dose),
                                    N_patients = N_batch, 
                                    p = p, 
-                                   SoC = NA)
+                                   SoC = SoC)
     if(N_current == 0) {
       Trial_data = Next_batch
     } else {
@@ -171,22 +171,25 @@ Full_Simulation = function(model_params_true,
                                starting_dose = starting_dose, 
                                p = Randomisation_p_SOC,
                                SoC = SoC)
-        ind_NA = Trial_data$Randomisation_code==2
-        Trial_data$log2_dose[ind_NA] = NA
-        out = cbind(opt_dose = Trial_data$optimal_dose, 
-                    MTD = Trial_data$MTD,
-                    TED = Trial_data$TED,
-                    assigned_dose = 2^Trial_data$log2_dose)
       } 
       if(design_type == '3+3'){
-        Trial_data = run_3plus3_trial(model_params_true = model_params_true, N_max = N_max, 
+        Trial_data = run_3plus3_trial(model_params_true = model_params_true, 
+                                      N_max = N_max, 
                                       starting_dose = starting_dose, 
                                       N_batch = N_batch, 
                                       max_increment = max_increment,
                                       MTT = MTT, 
-                                      TEL = TEL, epsilon=epsilon)
-        out = cbind(opt_dose = NA, assigned_dose = 2^Trial_data$log2_dose)
+                                      TEL = TEL, 
+                                      epsilon=epsilon,
+                                      p = Randomisation_p_SOC,
+                                      SoC = SoC)
       }
+      ind_NA = Trial_data$Randomisation_code==2
+      Trial_data$log2_dose[ind_NA] = NA
+      out = cbind(opt_dose = Trial_data$optimal_dose, 
+                  MTD = Trial_data$MTD,
+                  TED = Trial_data$TED,
+                  assigned_dose = 2^Trial_data$log2_dose)
       out
     }
     save(Summary_trials, file = paste('SimulationOutputs/',f_name,sep=''))

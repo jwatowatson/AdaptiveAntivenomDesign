@@ -56,6 +56,7 @@ escalation_rule = function(Trial_data, current_dose, max_increment, MTT, TEL, ep
   tox_current_dose = mean(Trial_data$tox_outcome[ind])
   
   N_dose = sum(ind)
+  if(N_dose == 0) return(current_dose)
   tox_decision = NA
   eff_decision = NA
   
