@@ -9,28 +9,12 @@ output:
   pdf_document: default
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(cache = T, cache.comments = FALSE, 
-                      include = TRUE, cache.lazy = F,
-                      fig.width = 12, fig.height = 12,
-                      fig.pos = 'H', dev = 'png', dpi = 300)
-library(tictoc)
-library(rootSolve)
-library(RColorBrewer)
-library(boot)
-library(rstan) 
-library(doParallel)
-library(foreach)
-FORCE_RERUN = F
-N_cores = 7 
-individ_plots = F #output as merged (4 panels) or single panel 
 
-source('dose_response_model_stan.R') # compile stan dose-response model
-```
 
 ## Setup model parameters
 
-```{r}
+
+```r
 source('Core_functions.R')
 source('Simulation_functions.R')
 source('plotting_functions.R')
@@ -53,7 +37,8 @@ solve_beta = function(alpha_val, v_star, y_star){
 
 ## Priors
 
-```{r prior}
+
+```r
 #******* Prior point estimates *********
 Prior_TED = 12;                   # prior estimate of the Target Efficacious Dose
 Prior_alpha_eff = logit(1/10)       # prior estimate of the efficacy with one vial
@@ -77,7 +62,8 @@ prior_model_params = list(beta_tox = Prior_beta_tox,
 
 ## Simulation 1
 
-```{r simulation_scenario_1}
+
+```r
 true_alpha_eff = logit(1/50)
 true_TED = 20  # 
 true_beta_eff = solve_beta(alpha_val = true_alpha_eff, v_star = true_TED, y_star = TEL)
@@ -95,6 +81,14 @@ model_params_true = list(beta_tox = true_beta_tox,
 
 tic()
 writeLines('\nSimulation 1, adaptive design...')
+```
+
+```
+## 
+## Simulation 1, adaptive design...
+```
+
+```r
 Full_Simulation(model_params_true = model_params_true,
                 prior_model_params = prior_model_params,
                 N_trials = N_trials,
@@ -110,10 +104,31 @@ Full_Simulation(model_params_true = model_params_true,
                 design_type = 'Adaptive',
                 starting_dose = starting_dose,
                 SoC = SoC)
-toc()
+```
 
+```
+## [1] "done the trial simulation, now plotting results"
+```
+
+```r
+toc()
+```
+
+```
+## 1.05 sec elapsed
+```
+
+```r
 tic()
 writeLines('\nSimulation 1, 3+3 design...')
+```
+
+```
+## 
+## Simulation 1, 3+3 design...
+```
+
+```r
 Full_Simulation(model_params_true = model_params_true,
                 prior_model_params = prior_model_params,
                 N_trials = 10*N_trials,
@@ -129,17 +144,38 @@ Full_Simulation(model_params_true = model_params_true,
                 design_type = '3+3',
                 starting_dose = starting_dose,
                 SoC = SoC)
-toc()
+```
 
+```
+## [1] "done the trial simulation, now plotting results"
+```
+
+```r
+toc()
+```
+
+```
+## 1.66 sec elapsed
+```
+
+```r
 compare_rule_vs_model(sim_title = 'Simulation scenario 1',
                       model_params_true = model_params_true,
                       prior_model_params = prior_model_params)
 ```
 
+![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_1-1.png)<!-- -->
+
+```
+## For the rule-based design, 19% of trials give patient 300 a dose within +/-10% of the true optimal dose
+## For the model-based design, 27% of trials give patient 300 a dose within +/-10% of the true optimal dose
+```
+
 
 ## Simulation 2
 
-```{r simulation_scenario_2}
+
+```r
 true_alpha_eff = logit(1/20)
 true_TED = 8  # simulation truth for the MED 
 true_beta_eff = solve_beta(alpha_val = true_alpha_eff, v_star = true_TED, y_star = TEL)
@@ -156,6 +192,14 @@ model_params_true = list(beta_tox = true_beta_tox,
 
 tic()
 writeLines('\nSimulation 2....')
+```
+
+```
+## 
+## Simulation 2....
+```
+
+```r
 Full_Simulation(model_params_true = model_params_true,
                 prior_model_params = prior_model_params,
                 N_trials = N_trials,
@@ -172,10 +216,31 @@ Full_Simulation(model_params_true = model_params_true,
                 design_type = 'Adaptive',
                 starting_dose = starting_dose,
                 SoC = SoC)
-toc()
+```
 
+```
+## [1] "done the trial simulation, now plotting results"
+```
+
+```r
+toc()
+```
+
+```
+## 0.36 sec elapsed
+```
+
+```r
 tic()
 writeLines('\nSimulation 2, 3+3 design...')
+```
+
+```
+## 
+## Simulation 2, 3+3 design...
+```
+
+```r
 Full_Simulation(model_params_true = model_params_true,
                 prior_model_params = prior_model_params,
                 N_trials = 10*N_trials,
@@ -191,17 +256,38 @@ Full_Simulation(model_params_true = model_params_true,
                 design_type = '3+3',
                 starting_dose = starting_dose,
                 SoC = SoC)
-toc()
+```
 
+```
+## [1] "done the trial simulation, now plotting results"
+```
+
+```r
+toc()
+```
+
+```
+## 1.08 sec elapsed
+```
+
+```r
 compare_rule_vs_model(sim_title = 'Simulation scenario 2',
                       model_params_true = model_params_true,
                       prior_model_params = prior_model_params)
 ```
 
+![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_2-1.png)<!-- -->
+
+```
+## For the rule-based design, 35% of trials give patient 300 a dose within +/-10% of the true optimal dose
+## For the model-based design, 47% of trials give patient 300 a dose within +/-10% of the true optimal dose
+```
+
 
 ## Simulation 3
 
-```{r simulation_scenario_3}
+
+```r
 true_alpha_eff = logit(1/100)
 true_TED = 60  # simulation truth for the MED 
 true_beta_eff = solve_beta(alpha_val = true_alpha_eff, v_star = true_TED, y_star = TEL)
@@ -220,6 +306,14 @@ model_params_true = list(beta_tox = true_beta_tox,
 
 tic()
 writeLines('\nSimulation 3....')
+```
+
+```
+## 
+## Simulation 3....
+```
+
+```r
 Full_Simulation(model_params_true = model_params_true,
                 prior_model_params = prior_model_params,
                 N_trials = N_trials,
@@ -236,10 +330,31 @@ Full_Simulation(model_params_true = model_params_true,
                 design_type = 'Adaptive',
                 starting_dose = starting_dose,
                 SoC = SoC)
-toc()
+```
 
+```
+## [1] "done the trial simulation, now plotting results"
+```
+
+```r
+toc()
+```
+
+```
+## 0.4 sec elapsed
+```
+
+```r
 tic()
 writeLines('\nSimulation 3, 3+3 design...')
+```
+
+```
+## 
+## Simulation 3, 3+3 design...
+```
+
+```r
 Full_Simulation(model_params_true = model_params_true,
                 prior_model_params = prior_model_params,
                 N_trials = 10*N_trials,
@@ -255,16 +370,37 @@ Full_Simulation(model_params_true = model_params_true,
                 design_type = '3+3',
                 starting_dose = starting_dose,
                 SoC = SoC)
-toc()
+```
 
+```
+## [1] "done the trial simulation, now plotting results"
+```
+
+```r
+toc()
+```
+
+```
+## 0.99 sec elapsed
+```
+
+```r
 compare_rule_vs_model(sim_title = 'Simulation scenario 3',
                       model_params_true = model_params_true,
                       prior_model_params = prior_model_params)
 ```
 
+![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_3-1.png)<!-- -->
+
+```
+## For the rule-based design, 40% of trials give patient 300 a dose within +/-10% of the true optimal dose
+## For the model-based design, 31% of trials give patient 300 a dose within +/-10% of the true optimal dose
+```
+
 ## Simulation 4
 
-```{r simulation_scenario_4}
+
+```r
 true_alpha_eff = logit(1/100)
 true_TED = 30  # simulation truth for the MED 
 true_beta_eff = solve_beta(alpha_val = true_alpha_eff, v_star = true_TED, y_star = TEL)
@@ -281,6 +417,14 @@ model_params_true = list(beta_tox = true_beta_tox,
 
 tic()
 writeLines('\nSimulation 4, Adaptive design ...')
+```
+
+```
+## 
+## Simulation 4, Adaptive design ...
+```
+
+```r
 Full_Simulation(model_params_true = model_params_true,
                 prior_model_params = prior_model_params,
                 N_trials = N_trials,
@@ -297,10 +441,31 @@ Full_Simulation(model_params_true = model_params_true,
                 design_type = 'Adaptive',
                 starting_dose = starting_dose,
                 SoC = SoC,epsilon = 0.01)
-toc()
+```
 
+```
+## [1] "done the trial simulation, now plotting results"
+```
+
+```r
+toc()
+```
+
+```
+## 0.36 sec elapsed
+```
+
+```r
 tic()
 writeLines('\nSimulation 4, 3+3 design ...')
+```
+
+```
+## 
+## Simulation 4, 3+3 design ...
+```
+
+```r
 Full_Simulation(model_params_true = model_params_true,
                 prior_model_params = prior_model_params,
                 N_trials = 10*N_trials,
@@ -316,9 +481,29 @@ Full_Simulation(model_params_true = model_params_true,
                 design_type = '3+3',
                 starting_dose = starting_dose,
                 SoC = SoC)
-toc()
+```
 
+```
+## [1] "done the trial simulation, now plotting results"
+```
+
+```r
+toc()
+```
+
+```
+## 1.03 sec elapsed
+```
+
+```r
 compare_rule_vs_model(sim_title = 'Simulation scenario 4',
                       model_params_true = model_params_true,
                       prior_model_params = prior_model_params)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_4-1.png)<!-- -->
+
+```
+## For the rule-based design, 18% of trials give patient 300 a dose within +/-10% of the true optimal dose
+## For the model-based design, 72% of trials give patient 300 a dose within +/-10% of the true optimal dose
 ```

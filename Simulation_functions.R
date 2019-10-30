@@ -148,10 +148,10 @@ Full_Simulation = function(model_params_true,
   f_name = paste(sim_title,'_',design_type, '.RData', sep = '')
   if(! design_type %in% c('Adaptive','3+3')) stop('Unknown design_type')
   
-  plot_prior_versus_truth(model_params_true = model_params_true,
-                          prior_model_params = prior_model_params,
-                          individ_plots = individ_plots,
-                          sim_title = sim_title)
+  # plot_prior_versus_truth(model_params_true = model_params_true,
+  #                         prior_model_params = prior_model_params,
+  #                         individ_plots = individ_plots,
+  #                         sim_title = sim_title)
   
   ##*** Run the simulated trial ***
   if(FORCE_RERUN | (!f_name %in% list.files(path = 'SimulationOutputs/')) ){
@@ -206,18 +206,18 @@ Full_Simulation = function(model_params_true,
     Summary_optimal_dose = Summary_trials[, cols_opt_dose]
     q_upper = apply(Summary_optimal_dose, 1, quantile, prob=0.05, na.rm=T)
     q_lower = apply(Summary_optimal_dose, 1, quantile, prob=0.95, na.rm=T)
-    plot(1:nrow(Summary_optimal_dose), Summary_optimal_dose[,1],
-         type='n', main = 'The estimated optimal doses', ylim=range(c(q_upper,q_lower)),
-         xlab = 'Patient recruitment index', ylab = 'Estimated optimal dose')
-    
-    
-    abline(h = 2^out$Vstar,col='red',lwd=2)
-    lines(1:nrow(Summary_optimal_dose), apply(Summary_optimal_dose, 1, mean, na.rm=T),lwd=3)
-    lines(1:nrow(Summary_optimal_dose), q_upper, lwd=1, lty=2)
-    lines(1:nrow(Summary_optimal_dose), q_lower, lwd=1, lty=2)
-    
-    legend('topright', legend = c('mean value','5&95 quantiles'), 
-           lwd = c(2,1), lty=c(1,2), inset=0.01, bty='y', bg = 'white')
+    # plot(1:nrow(Summary_optimal_dose), Summary_optimal_dose[,1],
+    #      type='n', main = 'The estimated optimal doses', ylim=range(c(q_upper,q_lower)),
+    #      xlab = 'Patient recruitment index', ylab = 'Estimated optimal dose')
+    # 
+    # 
+    # abline(h = 2^out$Vstar,col='red',lwd=2)
+    # lines(1:nrow(Summary_optimal_dose), apply(Summary_optimal_dose, 1, mean, na.rm=T),lwd=3)
+    # lines(1:nrow(Summary_optimal_dose), q_upper, lwd=1, lty=2)
+    # lines(1:nrow(Summary_optimal_dose), q_lower, lwd=1, lty=2)
+    # 
+    # legend('topright', legend = c('mean value','5&95 quantiles'), 
+    #        lwd = c(2,1), lty=c(1,2), inset=0.01, bty='y', bg = 'white')
   }
   
   ## *** Plot the assigned dose ***
@@ -230,22 +230,22 @@ Full_Simulation = function(model_params_true,
   if(design_type=='Adaptive') design_main = 'The assigned doses for adaptive arm'
   if(design_type=='3+3') design_main = 'The assigned dose'
   
-  plot(which(ind), Summary_assigned_dose[ind,1], col = adjustcolor('grey',alpha.f = .5),
-       type='n', main = design_main, 
-       ylim=range(c(q_upper,q_lower)),xlim=c(1,nrow(Summary_assigned_dose)),
-       xlab = 'Patient recruitment index', ylab = 'Assigned dose')
+  # plot(which(ind), Summary_assigned_dose[ind,1], col = adjustcolor('grey',alpha.f = .5),
+  #      type='n', main = design_main, 
+  #      ylim=range(c(q_upper,q_lower)),xlim=c(1,nrow(Summary_assigned_dose)),
+  #      xlab = 'Patient recruitment index', ylab = 'Assigned dose')
+  # 
+  # abline(h = 2^out$Vstar,col='red',lwd=3)
+  # lines(1:nrow(Summary_assigned_dose), apply(Summary_assigned_dose, 1, median, na.rm=T),lwd=2)
+  # lines(1:nrow(Summary_assigned_dose), q_upper, lwd=1, lty=2)
+  # lines(1:nrow(Summary_assigned_dose), q_lower, lwd=1, lty=2)
+  # 
+  # legend('topright', legend = c('median value','5&95 quantiles'), 
+  #        lwd = c(2,1), lty=c(1,2), inset=0.01, bty='y', bg = 'white')
   
-  abline(h = 2^out$Vstar,col='red',lwd=3)
-  lines(1:nrow(Summary_assigned_dose), apply(Summary_assigned_dose, 1, median, na.rm=T),lwd=2)
-  lines(1:nrow(Summary_assigned_dose), q_upper, lwd=1, lty=2)
-  lines(1:nrow(Summary_assigned_dose), q_lower, lwd=1, lty=2)
-  
-  legend('topright', legend = c('median value','5&95 quantiles'), 
-         lwd = c(2,1), lty=c(1,2), inset=0.01, bty='y', bg = 'white')
-  
-  # Histogram of final assigned dose
-  last_dose = round(Summary_assigned_dose[nrow(Summary_assigned_dose),])
-  barplot(table(last_dose), xlab = 'Dose', ylab = 'Number of trials', 
-          main = 'Final estimated optimal dose')
+  # # Histogram of final assigned dose
+  # last_dose = round(Summary_assigned_dose[nrow(Summary_assigned_dose),])
+  # barplot(table(last_dose), xlab = 'Dose', ylab = 'Number of trials', 
+  #         main = 'Final estimated optimal dose')
   
 }
