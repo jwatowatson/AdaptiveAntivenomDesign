@@ -126,7 +126,7 @@ compare_rule_vs_model = function(sim_title,
   # lines(1:nrow(Summary_TED), q_upperTED, lwd=1, lty=3, col=mypallete[8])
   # lines(1:nrow(Summary_TED), q_lowerTED, lwd=1, lty=3, col=mypallete[8])
   
-  legend('topright', legend = c('true MTD','true TED', 'estimated MTD','estimated MTD'), 
+  legend('topright', legend = c('true MTD','true TED', 'estimated MTD','estimated TED'), 
          col=mypallete[c(1,3,5,8)], lty=c(1,1,3,3),
          lwd = c(2,2,3,3), inset=0.01, bty='y', bg = 'white')
   mtext(text = 'b',side = 3,line = 2,at = 0,cex = 2)

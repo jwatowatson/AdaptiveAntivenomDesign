@@ -115,7 +115,7 @@ toc()
 ```
 
 ```
-## 1.05 sec elapsed
+## 0.497 sec elapsed
 ```
 
 ```r
@@ -155,7 +155,7 @@ toc()
 ```
 
 ```
-## 1.66 sec elapsed
+## 1.147 sec elapsed
 ```
 
 ```r
@@ -227,7 +227,7 @@ toc()
 ```
 
 ```
-## 0.36 sec elapsed
+## 0.342 sec elapsed
 ```
 
 ```r
@@ -267,7 +267,7 @@ toc()
 ```
 
 ```
-## 1.08 sec elapsed
+## 1.026 sec elapsed
 ```
 
 ```r
@@ -341,7 +341,7 @@ toc()
 ```
 
 ```
-## 0.4 sec elapsed
+## 0.323 sec elapsed
 ```
 
 ```r
@@ -381,7 +381,7 @@ toc()
 ```
 
 ```
-## 0.99 sec elapsed
+## 1.017 sec elapsed
 ```
 
 ```r
@@ -452,7 +452,7 @@ toc()
 ```
 
 ```
-## 0.36 sec elapsed
+## 0.269 sec elapsed
 ```
 
 ```r
@@ -492,7 +492,7 @@ toc()
 ```
 
 ```
-## 1.03 sec elapsed
+## 0.935 sec elapsed
 ```
 
 ```r
