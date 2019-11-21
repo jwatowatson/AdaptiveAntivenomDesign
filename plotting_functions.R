@@ -1,7 +1,16 @@
 plot_prior_versus_truth = function(model_params_true,
+                                   true_model,
                                    prior_model_params,
-                                   individ_plots = F, sim_title ){
+                                   sim_title ){
   
+  if(is.null(model_params_true) & is.null(true_model)) {
+    stop('One of model_params_true or true_model has to be specified (plot_prior_versus_truth)')
+  }
+  if(is.null(model_params_true)) { 
+    mis_specified=TRUE
+  } else {
+    mis_specified=FALSE
+  }
   
   # ** Set up parameters **
   K = 1000
@@ -13,16 +22,20 @@ plot_prior_versus_truth = function(model_params_true,
   
   ## *** Plot the prior versus simulation truth ***
   par(las=1, bty='n')
-  if(!individ_plots) layout(mat = matrix(c(1,2,3,4), nrow = 2, byrow = T))
-  
-  plot(xs, 100*inv.logit(model_params_true$alpha_eff + model_params_true$beta_eff*xs),
-       type='l',xlab = 'Dose (mL)', ylab = 'Probability of outcome (%)', 
+  layout(mat = matrix(c(1,2,3,4), nrow = 2, byrow = T))
+  if(mis_specified){
+    ys_truth_eff=true_model$eff(2^xs)
+    ys_truth_tox=true_model$tox(2^xs)
+  } else {
+    ys_truth_eff=inv.logit(model_params_true$alpha_eff + model_params_true$beta_eff*xs)
+    ys_truth_tox=inv.logit(model_params_true$alpha_tox + model_params_true$beta_tox*xs)
+  }
+  plot(xs, 100*ys_truth_eff, type='l',xlab = 'Dose (mL)', ylab = 'Probability of outcome (%)', 
        xaxt='n', ylim=c(0,100),lwd=2, col=mypallete[3], yaxt='n')
   axis(2, at = c(5,20,50,80,95))
   axis(1, at = 1:6, labels = 10*2^(1:6))
-  lines(xs, 100*inv.logit(model_params_true$alpha_tox + model_params_true$beta_tox*xs),
-        lwd=2,col=mypallete[1])
-  #title(sim_title)
+  
+  lines(xs, 100*ys_truth_tox,lwd=2,col=mypallete[1])
   abline(h = 100*c(TEL, MTT))
   # plot prior guess
   lines(xs, 100*inv.logit(Prior_alpha_tox + Prior_beta_tox*xs),
@@ -46,8 +59,12 @@ plot_prior_versus_truth = function(model_params_true,
   polygon(x = c(xs,rev(xs)), y = 100*c(apply(ys_eff,2,quantile,prob=0.025),
                                        rev(apply(ys_eff,2,quantile,prob=0.975))), 
           col = adjustcolor(mypallete[8],alpha.f = .2), border = NA)
-  out = Estimate_log2_Vstar(model_params = model_params_true, MTT = MTT, TEL = TEL)
-  out_prior = Estimate_log2_Vstar(model_params = prior_model_params, MTT = MTT, TEL = TEL)
+  out = Estimate_log2_Vstar(model_params = model_params_true, 
+                            true_model = true_model, 
+                            MTT = MTT, TEL = TEL)
+  out_prior = Estimate_log2_Vstar(model_params = prior_model_params, 
+                                  true_model = NULL, 
+                                  MTT = MTT, TEL = TEL)
   abline(v = out$Vstar, col='red',lwd=3)
   abline(v = out_prior$Vstar, 
          col='red',lwd=2,lty=3)
@@ -58,23 +75,35 @@ plot_prior_versus_truth = function(model_params_true,
                     'True optimal dose', 'Prior optimal dose'),
          lwd=2,lty=c(1,3,1,3,1,3), inset = 0.02)
   
-  
 }
 
 
 compare_rule_vs_model = function(sim_title,
+                                 true_model,
                                  model_params_true,
                                  prior_model_params){
   
+  if(is.null(model_params_true) & is.null(true_model)) {
+    stop('One of model_params_true or true_model has to be specified (compare_rule_vs_model)')
+  }
+  if(is.null(model_params_true) & !is.null(true_model)) { 
+    specification_type='mis_specified'
+  } 
+  if(!is.null(model_params_true) & is.null(true_model)) {
+    specification_type='well_specified'
+  }
+  if(!is.null(model_params_true) & !is.null(true_model)) {
+    stop('ambiguous specification')
+  }
+  
   # load saved data
-  f_name_rule = paste('SimulationOutputs/',sim_title,'_','3+3', '.RData', sep = '')
-  f_name_model = paste('SimulationOutputs/',sim_title,'_','Adaptive', '.RData', sep = '')
+  f_name_rule = paste('SimulationOutputs/', sim_title, '_', 'rule_based', '_', specification_type, '.RData', sep = '')
+  f_name_model = paste('SimulationOutputs/',sim_title,'_','model_based', '_', specification_type, '.RData', sep = '')
   load(f_name_model)
   Summary_model = Summary_trials
   load(f_name_rule)
   Summary_rule = Summary_trials
   rm(Summary_trials)
-  
   
   # uncertainty interval quantiles (upper and lower)
   qu=.95
@@ -83,8 +112,8 @@ compare_rule_vs_model = function(sim_title,
   par(mfrow=c(2,2), las=1, bty='n', family = 'serif', cex.lab=1.5, cex.axis=1.5, mar=c(5,5,4,2))
   # ******* Plot the prior versus the simulation truth *********
   plot_prior_versus_truth(model_params_true = model_params_true,
+                          true_model = true_model,
                           prior_model_params = prior_model_params,
-                          individ_plots = F,
                           sim_title = sim_title)
   mtext(text = 'a',side = 3,line = 2,at = 0,cex = 2)
   
@@ -105,8 +134,10 @@ compare_rule_vs_model = function(sim_title,
        xlab = 'Patient recruitment index', ylab = 'Dose (mL)')
   my_ys = log2(c(100, 200, 400, 800, 1200)/10)
   axis(2, at = my_ys, labels = 10 * 2^(my_ys))
-  out = Estimate_log2_Vstar(model_params = model_params_true,MTT = .05,TEL = .95)
-  vstar = 10* 2^out$Vstar
+  out = Estimate_log2_Vstar(model_params = model_params_true,
+                            true_model = true_model,
+                            MTT = .05,TEL = .95)
+  vstar = 10 * 2^out$Vstar
   
   abline(h = c(out$MTD,out$TED),col=mypallete[c(1,3)], lwd=2)
   
@@ -115,16 +146,12 @@ compare_rule_vs_model = function(sim_title,
           col = adjustcolor(mypallete[5],alpha.f = .2), border = NA)
   lines(1:nrow(Summary_MTD), log2(apply(Summary_MTD, 1, mean, na.rm=T)),
         lwd=3,col=mypallete[5],lty=3)
-  # lines(1:nrow(Summary_MTD), q_upperMTD, lwd=1, lty=3, col=mypallete[5])
-  # lines(1:nrow(Summary_MTD), q_lowerMTD, lwd=1, lty=3, col=mypallete[5])
   
   polygon(x = c(1:nrow(Summary_TED),rev(1:nrow(Summary_TED))), 
           y = c(q_upperTED, rev(q_lowerTED)), 
           col = adjustcolor(mypallete[8],alpha.f = .2), border = NA)
   lines(1:nrow(Summary_TED), log2(apply(Summary_TED, 1, mean, na.rm=T)),
         lwd=3,col=mypallete[8],lty=3)
-  # lines(1:nrow(Summary_TED), q_upperTED, lwd=1, lty=3, col=mypallete[8])
-  # lines(1:nrow(Summary_TED), q_lowerTED, lwd=1, lty=3, col=mypallete[8])
   
   legend('topright', legend = c('true MTD','true TED', 'estimated MTD','estimated TED'), 
          col=mypallete[c(1,3,5,8)], lty=c(1,1,3,3),

@@ -4,19 +4,33 @@ dose_response = function(x, alpha_val, beta_val, y_star){
   return(z)
 }
 
-Estimate_log2_Vstar = function(model_params, MTT, TEL){
-  TED = uniroot.all(dose_response, lower = -10, upper = 100, 
-                    alpha_val = model_params$alpha_eff,
-                    y_star = TEL, 
-                    beta_val = model_params$beta_eff)
+Estimate_log2_Vstar = function(model_params, true_model, MTT, TEL){
   
-  MTD = uniroot.all(dose_response, lower = -10, upper = 100, 
-                    alpha_val = model_params$alpha_tox,
-                    y_star = MTT, 
-                    beta_val = model_params$beta_tox)
+  if(is.null(model_params) & is.null(true_model)) {
+    stop('One of model_params or true_model has to be specified (Estimate_log2_Vstar)')
+  }
+  if(!is.null(model_params) & !is.null(true_model)) {
+    stop('Ambiguous whether true model or model_params')
+  }
+  if(is.null(model_params) & !is.null(true_model)) {
+    log2TED = log2(uniroot.all(function(x,TEL) true_model$eff(x)-TEL, lower = 0, upper = 1000,TEL=TEL))
+    log2MTD = log2(uniroot.all(function(x,MTT) true_model$tox(x)-MTT, lower = 0, upper = 1000,MTT=MTT))
+  } 
+  if(!is.null(model_params) & is.null(true_model)) {
+    log2TED = uniroot.all(dose_response, lower = -10, upper = 100, 
+                      alpha_val = model_params$alpha_eff,
+                      y_star = TEL, 
+                      beta_val = model_params$beta_eff)
+    
+    log2MTD = uniroot.all(dose_response, lower = -10, upper = 100, 
+                      alpha_val = model_params$alpha_tox,
+                      y_star = MTT, 
+                      beta_val = model_params$beta_tox)
+  }
+
   
-  Vstar = min(TED, MTD)
-  out = list(TED=TED, MTD=MTD, Vstar=Vstar)
+  log2Vstar = min(log2TED, log2MTD)
+  out = list(TED=log2TED, MTD=log2MTD, Vstar=log2Vstar)
   return(out)
 }
 
