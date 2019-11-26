@@ -1,7 +1,7 @@
 plot_prior_versus_truth = function(model_params_true,
                                    true_model,
                                    prior_model_params,
-                                   sim_title ){
+                                   sim_title, plot_vstar = T){
   
   if(is.null(model_params_true) & is.null(true_model)) {
     stop('One of model_params_true or true_model has to be specified (plot_prior_versus_truth)')
@@ -21,8 +21,6 @@ plot_prior_versus_truth = function(model_params_true,
   mypallete = brewer.pal(8,'Dark2')
   
   ## *** Plot the prior versus simulation truth ***
-  par(las=1, bty='n')
-  layout(mat = matrix(c(1,2,3,4), nrow = 2, byrow = T))
   if(mis_specified){
     ys_truth_eff=true_model$eff(2^xs)
     ys_truth_tox=true_model$tox(2^xs)
@@ -65,9 +63,12 @@ plot_prior_versus_truth = function(model_params_true,
   out_prior = Estimate_log2_Vstar(model_params = prior_model_params, 
                                   true_model = NULL, 
                                   MTT = MTT, TEL = TEL)
-  abline(v = out$Vstar, col='red',lwd=3)
-  abline(v = out_prior$Vstar, 
-         col='red',lwd=2,lty=3)
+  if(plot_vstar){
+    abline(v = out$Vstar, col='red',lwd=3)
+    abline(v = out_prior$Vstar, 
+           col='red',lwd=2,lty=3)
+  }
+  
   
   legend('topright',col= c(mypallete[c(3,8,1,5)],'red','red'),bg = 'white',bty='y',cex = 1,
          legend = c('True efficacy','Prior efficacy estimate',
@@ -81,7 +82,8 @@ plot_prior_versus_truth = function(model_params_true,
 compare_rule_vs_model = function(sim_title,
                                  true_model,
                                  model_params_true,
-                                 prior_model_params){
+                                 prior_model_params, 
+                                 idiosyncratic = F, plot_vstar = T){
   
   if(is.null(model_params_true) & is.null(true_model)) {
     stop('One of model_params_true or true_model has to be specified (compare_rule_vs_model)')
@@ -114,9 +116,8 @@ compare_rule_vs_model = function(sim_title,
   plot_prior_versus_truth(model_params_true = model_params_true,
                           true_model = true_model,
                           prior_model_params = prior_model_params,
-                          sim_title = sim_title)
+                          sim_title = sim_title, plot_vstar = plot_vstar)
   mtext(text = 'a',side = 3,line = 2,at = 0,cex = 2)
-  
   
   # ******* Plot the estimated optimal dose from the model-based design *******
   mypallete = brewer.pal(8,'Dark2')
@@ -132,14 +133,15 @@ compare_rule_vs_model = function(sim_title,
        type='n', main = '', yaxt='n',
        ylim= range(c(q_upperMTD,q_lowerMTD,q_upperTED,q_lowerTED)),
        xlab = 'Patient recruitment index', ylab = 'Dose (mL)')
-  my_ys = log2(c(100, 200, 400, 800, 1200)/10)
+  my_ys = log2(c(10,100, 200, 400, 800, 1200)/10)
   axis(2, at = my_ys, labels = 10 * 2^(my_ys))
   out = Estimate_log2_Vstar(model_params = model_params_true,
                             true_model = true_model,
                             MTT = .05,TEL = .95)
   vstar = 10 * 2^out$Vstar
   
-  abline(h = c(out$MTD,out$TED),col=mypallete[c(1,3)], lwd=2)
+  if(plot_vstar) abline(h = out$MTD,col=mypallete[1], lwd=2)
+  abline(h = out$TED, col = mypallete[3], lwd=2)
   
   polygon(x = c(1:nrow(Summary_MTD),rev(1:nrow(Summary_MTD))), 
           y = c(q_upperMTD, rev(q_lowerMTD)), 
