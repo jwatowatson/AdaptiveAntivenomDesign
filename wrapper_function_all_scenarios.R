@@ -9,7 +9,8 @@ run_all_scenarios = function(sim_title,
                              FORCE_RERUN, 
                              N_cores, 
                              starting_dose, 
-                             SoC){
+                             SoC,
+                             use_SoC_data){
   
   #************** model_based simulations ************
   #************** Well specified ******************
@@ -29,7 +30,8 @@ run_all_scenarios = function(sim_title,
                   N_cores = N_cores,
                   design_type = 'model_based',
                   starting_dose = starting_dose,
-                  SoC = SoC)
+                  SoC = SoC,
+                  use_SoC_data = use_SoC_data)
   toc()
   
   #************** Mis-specified ******************
@@ -49,7 +51,8 @@ run_all_scenarios = function(sim_title,
                   N_cores = N_cores, 
                   design_type = 'model_based',
                   starting_dose = starting_dose,
-                  SoC = SoC)
+                  SoC = SoC,
+                  use_SoC_data = use_SoC_data)
   toc()
   
   #************** rule_based simulations ************

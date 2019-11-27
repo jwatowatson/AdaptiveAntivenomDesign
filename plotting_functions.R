@@ -83,6 +83,7 @@ compare_rule_vs_model = function(sim_title,
                                  true_model,
                                  model_params_true,
                                  prior_model_params, 
+                                 use_SoC_data,
                                  idiosyncratic = F, plot_vstar = T){
   
   if(is.null(model_params_true) & is.null(true_model)) {
@@ -97,10 +98,15 @@ compare_rule_vs_model = function(sim_title,
   if(!is.null(model_params_true) & !is.null(true_model)) {
     stop('ambiguous specification')
   }
+  if(use_SoC_data) {
+    SoC_use = 'All_data'
+  } else {
+    SoC_use = 'Adaptive_data'
+  }
   
   # load saved data
-  f_name_rule = paste('SimulationOutputs/', sim_title, '_', 'rule_based', '_', specification_type, '.RData', sep = '')
-  f_name_model = paste('SimulationOutputs/',sim_title,'_','model_based', '_', specification_type, '.RData', sep = '')
+  f_name_rule = paste('SimulationOutputs/', sim_title, '_', 'rule_based', '_', specification_type, '_', 'All_data', '.RData', sep = '')
+  f_name_model = paste('SimulationOutputs/',sim_title,'_','model_based', '_', specification_type, '_', SoC_use, '.RData', sep = '')
   load(f_name_model)
   Summary_model = Summary_trials
   load(f_name_rule)
@@ -195,7 +201,12 @@ compare_rule_vs_model = function(sim_title,
   lines(1:nrow(Summary_assigned_rule), apply(Summary_assigned_rule, 1, mean, na.rm=T),
         col=mypallete[3], lwd=2)
   
-  legend('topleft', legend = c('Model-based','Rule-based'), title = 'Assigned dose',
+  if(use_SoC_data) {
+    SoC_legend = ' (all data)'
+  } else {
+    SoC_legend = ' (adaptive data)'
+  }
+  legend('topleft', legend = c(paste('Model-based',SoC_legend),'Rule-based'), title = 'Assigned dose',
          lwd = 2, lty=1, inset=0.01, bty='y', bg = 'white', col=mypallete[c(2,3)])
   
   # ******* Compare final doses: histogram *******

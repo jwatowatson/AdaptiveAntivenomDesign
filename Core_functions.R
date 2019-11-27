@@ -18,16 +18,16 @@ Estimate_log2_Vstar = function(model_params, true_model, MTT, TEL){
   } 
   if(!is.null(model_params) & is.null(true_model)) {
     log2TED = uniroot.all(dose_response, lower = -10, upper = 100, 
-                      alpha_val = model_params$alpha_eff,
-                      y_star = TEL, 
-                      beta_val = model_params$beta_eff)
+                          alpha_val = model_params$alpha_eff,
+                          y_star = TEL, 
+                          beta_val = model_params$beta_eff)
     
     log2MTD = uniroot.all(dose_response, lower = -10, upper = 100, 
-                      alpha_val = model_params$alpha_tox,
-                      y_star = MTT, 
-                      beta_val = model_params$beta_tox)
+                          alpha_val = model_params$alpha_tox,
+                          y_star = MTT, 
+                          beta_val = model_params$beta_tox)
   }
-
+  
   
   log2Vstar = min(log2TED, log2MTD)
   out = list(TED=log2TED, MTD=log2MTD, Vstar=log2Vstar)
@@ -36,7 +36,16 @@ Estimate_log2_Vstar = function(model_params, true_model, MTT, TEL){
 
 # This function does the Bayesian posterior estimation
 estimate_posterior_params = function(Trial_data=Trial_data,
-                                     prior_model_params=prior_model_params,iter=10^3){
+                                     prior_model_params=prior_model_params,
+                                     use_SoC_data,
+                                     iter=10^3){
+  if(!use_SoC_data){
+    if(sum(Trial_data$Randomisation_code==1) < 2){
+      return(prior_model_params)
+    } else {
+      Trial_data = dplyr::filter(Trial_data, Randomisation_code==1)
+    }
+  } 
   
   my_fit = sampling(dose_response_model,
                     data = list(N = nrow(Trial_data),
@@ -61,6 +70,7 @@ estimate_posterior_params = function(Trial_data=Trial_data,
                                 beta_eff = model_params['beta_e','mean'], 
                                 alpha_eff = model_params['alpha_e','mean'])
   return(posterior_model_params)
+  
 }
 
 # The escalation and de-escalation rules for the rule-based design

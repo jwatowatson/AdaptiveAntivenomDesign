@@ -69,7 +69,8 @@ run_trial = function(model_params_true,
                      prior_model_params, 
                      N_max, 
                      max_increment, MTT, TEL, 
-                     N_batch, p, starting_dose, SoC){
+                     N_batch, p, starting_dose, SoC,
+                     use_SoC_data){
   
   # Set up parameters and choose the optimal dose based on the prior
   N_current = 0
@@ -94,7 +95,8 @@ run_trial = function(model_params_true,
   while(N_current < N_max){
     # Estimate Bayesian MAP
     posterior_model_params = estimate_posterior_params(Trial_data=Trial_data,
-                                                       prior_model_params=prior_model_params)
+                                                       prior_model_params=prior_model_params,
+                                                       use_SoC_data=use_SoC_data)
     out = Estimate_log2_Vstar(model_params = posterior_model_params,
                               true_model = NULL,
                               MTT = MTT, TEL = TEL)
@@ -165,7 +167,7 @@ run_3plus3_trial = function(model_params_true,
 }
 
 
-# Wrapper function that plots the prior and runs an adaptive design trial
+# Wrapper function that runs an adaptive design trial (model or rule based)
 Full_Simulation = function(model_params_true, # parameters for sim truth when well-specified
                            true_model, # sim truth when mis-specified
                            prior_model_params, # parameters for the prior distribution
@@ -179,10 +181,11 @@ Full_Simulation = function(model_params_true, # parameters for sim truth when we
                            sim_title='',
                            FORCE_RERUN, 
                            N_cores=NA, 
-                           design_type='model_based',
+                           design_type,
                            starting_dose, 
                            SoC, 
-                           epsilon = 0.01
+                           epsilon = 0.01,
+                           use_SoC_data = T # only for the model-based: specified if the model update uses the SoC data
 ){
   if(is.null(model_params_true) & is.null(true_model)) {
     stop('One of model_params_true or true_model has to be specified')
@@ -196,11 +199,16 @@ Full_Simulation = function(model_params_true, # parameters for sim truth when we
   if(! design_type %in% c('model_based','rule_based')) {
     stop('Unknown design_type. This has to be = model_based / rule_based')
   }
-  print(specification)
+  if(use_SoC_data) {
+    SoC_use = 'All_data'
+  } else {
+    SoC_use = 'Adaptive_data'
+  }
   
   ##*** Run the simulated trial ***
   # We don't rerun unless FORCE_RERUN is TRUE
-  f_name = paste(sim_title,'_',design_type,'_',specification, '.RData', sep = '')
+  f_name = paste(sim_title,'_',design_type,'_',specification, '_', SoC_use,'.RData', sep = '')
+  print(f_name)
   if(FORCE_RERUN | (!f_name %in% list.files(path = 'SimulationOutputs/')) ){
     
     if(is.na(N_cores)) N_cores = detectCores()-1
@@ -218,7 +226,8 @@ Full_Simulation = function(model_params_true, # parameters for sim truth when we
                                TEL = TEL,
                                starting_dose = starting_dose, 
                                p = Randomisation_p_SOC,
-                               SoC = SoC)
+                               SoC = SoC,
+                               use_SoC_data = use_SoC_data)
       } 
       if(design_type == 'rule_based'){
         Trial_data = run_3plus3_trial(model_params_true = model_params_true, 

@@ -3,10 +3,9 @@ title: "Simulation study comparing rule-based and model-based adaptive designs"
 author: "James Watson"
 date: "October 10, 2019"
 output:
-  html_document:
+  pdf_document: 
     fig_caption: yes
     keep_md: yes
-  pdf_document: default
 ---
 
 
@@ -60,6 +59,33 @@ prior_model_params = list(beta_tox = Prior_beta_tox,
                           alpha_eff_sd = 2)
 ```
 
+## Mis-specified dose response
+
+This function computes linear dose-response curves based on the parameters (MTT, TEL etc).
+
+
+```r
+make_linear_dose_response = function(MTT, true_MTD, tox_zero=1,
+                                     TEL, true_TED, eff_zero=1){
+  xs = seq(0, 1000, by=.1)
+  tox_MTD = true_MTD
+  slope_tox = MTT/(tox_MTD - tox_zero)
+  intercept_tox = -slope_tox * tox_zero
+  ys = slope_tox*xs + intercept_tox
+  ys[ys>1]=1; ys[ys<0]=0
+  f_true_tox = approxfun(x = xs, y = ys, rule = 2)
+  
+  eff_TED = true_TED
+  slope_eff = TEL/(eff_TED - eff_zero)
+  intercept_eff = -slope_eff * eff_zero
+  ys = slope_eff*xs + intercept_eff
+  ys[ys>1]=1; ys[ys<0]=0
+  f_true_eff = approxfun(x = xs, ys, rule = 2)
+  true_model = list(tox = f_true_tox, eff = f_true_eff)
+  
+  return(true_model)
+}
+```
 
 ## Simulation 1
 
@@ -81,21 +107,8 @@ model_params_true = list(beta_tox = true_beta_tox,
                          alpha_eff=true_alpha_eff)
 
 # mis-specified simulation truth
-xs = seq(0, 1000, by=.1)
-tox_zero = 1; tox_MTD = true_MTD
-slope_tox = MTT/(tox_MTD - tox_zero)
-intercept_tox = -slope_tox * tox_zero
-ys = slope_tox*xs + intercept_tox
-ys[ys>1]=1; ys[ys<0]=0
-f_true_tox = approxfun(x = xs, y = ys, rule = 2)
-
-eff_zero = 1; eff_TED = true_TED
-slope_eff = TEL/(eff_TED - eff_zero)
-intercept_eff = -slope_eff * eff_zero
-ys = slope_eff*xs + intercept_eff
-ys[ys>1]=1; ys[ys<0]=0
-f_true_eff = approxfun(x = xs, ys, rule = 2)
-true_model = list(tox = f_true_tox, eff = f_true_eff)
+true_model = make_linear_dose_response(MTT, true_MTD, tox_zero=1,
+                                       TEL, true_TED, eff_zero=1)
 
 run_all_scenarios(model_params_true = model_params_true,
                   true_model = true_model,
@@ -110,22 +123,22 @@ run_all_scenarios(model_params_true = model_params_true,
                   FORCE_RERUN=FORCE_RERUN, 
                   N_cores = N_cores, 
                   starting_dose = starting_dose,
-                  SoC = SoC)
+                  SoC = SoC, use_SoC_data = T)
 ```
 
 ```
 ## Simulation scenario 1 , model based design, well-specified, ...
-## [1] "well_specified"
-## 5211.722 sec elapsed
+## [1] "Simulation scenario 1_model_based_well_specified_All_data.RData"
+## 0.108 sec elapsed
 ## Simulation scenario 1 , model based design, mis-specified, ...
-## [1] "mis_specified"
-## 5394.597 sec elapsed
+## [1] "Simulation scenario 1_model_based_mis_specified_All_data.RData"
+## 0.055 sec elapsed
 ## Simulation scenario 1 , rule based design, well-specified, ...
-## [1] "well_specified"
-## 187.173 sec elapsed
+## [1] "Simulation scenario 1_rule_based_well_specified_All_data.RData"
+## 0.229 sec elapsed
 ## Simulation scenario 1 , rule based design, mis-specified, ...
-## [1] "mis_specified"
-## 191.035 sec elapsed
+## [1] "Simulation scenario 1_rule_based_mis_specified_All_data.RData"
+## 0.188 sec elapsed
 ```
 
 ```r
@@ -133,13 +146,13 @@ run_all_scenarios(model_params_true = model_params_true,
 compare_rule_vs_model(sim_title = 'Simulation scenario 1',
                       model_params_true = model_params_true,
                       true_model = NULL,
-                      prior_model_params = prior_model_params)
+                      prior_model_params = prior_model_params,use_SoC_data = T)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_1-1.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_1-1.png)<!-- --> 
 
 ```
-## For the rule-based design, 12% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the rule-based design, 13% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ## For the model-based design, 27% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ```
 
@@ -148,14 +161,76 @@ compare_rule_vs_model(sim_title = 'Simulation scenario 1',
 compare_rule_vs_model(sim_title = 'Simulation scenario 1',
                       model_params_true = NULL,
                       true_model = true_model,
-                      prior_model_params = prior_model_params)
+                      prior_model_params = prior_model_params,use_SoC_data = T)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_1-2.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_1-2.png)<!-- --> 
 
 ```
 ## For the rule-based design, 5% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ## For the model-based design, 22% of trials give patient 252 a dose within +/-10% of the true optimal dose
+```
+
+```r
+run_all_scenarios(model_params_true = model_params_true,
+                  true_model = true_model,
+                  prior_model_params = prior_model_params,
+                  N_trials = N_trials,
+                  MTT = MTT, TEL = TEL,
+                  N_max = N_max, 
+                  N_batch = N_batch,
+                  max_increment = max_increment, 
+                  Randomisation_p_SOC = Randomisation_p_SOC,
+                  sim_title = 'Simulation scenario 1',
+                  FORCE_RERUN=FORCE_RERUN, 
+                  N_cores = N_cores, 
+                  starting_dose = starting_dose,
+                  SoC = SoC, use_SoC_data = F)
+```
+
+```
+## Simulation scenario 1 , model based design, well-specified, ...
+## [1] "Simulation scenario 1_model_based_well_specified_Adaptive_data.RData"
+## 0.059 sec elapsed
+## Simulation scenario 1 , model based design, mis-specified, ...
+## [1] "Simulation scenario 1_model_based_mis_specified_Adaptive_data.RData"
+## 0.061 sec elapsed
+## Simulation scenario 1 , rule based design, well-specified, ...
+## [1] "Simulation scenario 1_rule_based_well_specified_All_data.RData"
+## 0.101 sec elapsed
+## Simulation scenario 1 , rule based design, mis-specified, ...
+## [1] "Simulation scenario 1_rule_based_mis_specified_All_data.RData"
+## 0.102 sec elapsed
+```
+
+```r
+# Comparison in well-specified case
+compare_rule_vs_model(sim_title = 'Simulation scenario 1',
+                      model_params_true = model_params_true,
+                      true_model = NULL,
+                      prior_model_params = prior_model_params,use_SoC_data = F)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_1-3.png)<!-- --> 
+
+```
+## For the rule-based design, 13% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the model-based design, 24% of trials give patient 252 a dose within +/-10% of the true optimal dose
+```
+
+```r
+# Comparison in mis-specified case
+compare_rule_vs_model(sim_title = 'Simulation scenario 1',
+                      model_params_true = NULL,
+                      true_model = true_model,
+                      prior_model_params = prior_model_params,use_SoC_data = F)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_1-4.png)<!-- --> 
+
+```
+## For the rule-based design, 5% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the model-based design, 20% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ```
 
 
@@ -179,21 +254,8 @@ model_params_true = list(beta_tox = true_beta_tox,
                          alpha_eff = true_alpha_eff)
 
 # mis-specified simulation truth
-xs = seq(0, 1000, by=.1)
-tox_zero = 1; tox_MTD = true_MTD
-slope_tox = MTT/(tox_MTD - tox_zero)
-intercept_tox = -slope_tox * tox_zero
-ys = slope_tox*xs + intercept_tox
-ys[ys>1]=1; ys[ys<0]=0
-f_true_tox = approxfun(x = xs, y = ys, rule = 2)
-
-eff_zero = 1; eff_TED = true_TED
-slope_eff = TEL/(eff_TED - eff_zero)
-intercept_eff = -slope_eff * eff_zero
-ys = slope_eff*xs + intercept_eff
-ys[ys>1]=1; ys[ys<0]=0
-f_true_eff = approxfun(x = xs, ys, rule = 2)
-true_model = list(tox = f_true_tox, eff = f_true_eff)
+true_model = make_linear_dose_response(MTT, true_MTD, tox_zero=1,
+                                       TEL, true_TED, eff_zero=1)
 
 run_all_scenarios(model_params_true = model_params_true,
                   true_model = true_model,
@@ -208,22 +270,23 @@ run_all_scenarios(model_params_true = model_params_true,
                   FORCE_RERUN=FORCE_RERUN, 
                   N_cores = N_cores, 
                   starting_dose = starting_dose,
-                  SoC = SoC)
+                  SoC = SoC,
+                  use_SoC_data = T)
 ```
 
 ```
 ## Simulation scenario 2 , model based design, well-specified, ...
-## [1] "well_specified"
-## 5135.992 sec elapsed
+## [1] "Simulation scenario 2_model_based_well_specified_All_data.RData"
+## 0.053 sec elapsed
 ## Simulation scenario 2 , model based design, mis-specified, ...
-## [1] "mis_specified"
-## 5127.797 sec elapsed
+## [1] "Simulation scenario 2_model_based_mis_specified_All_data.RData"
+## 0.053 sec elapsed
 ## Simulation scenario 2 , rule based design, well-specified, ...
-## [1] "well_specified"
-## 192.246 sec elapsed
+## [1] "Simulation scenario 2_rule_based_well_specified_All_data.RData"
+## 0.132 sec elapsed
 ## Simulation scenario 2 , rule based design, mis-specified, ...
-## [1] "mis_specified"
-## 186.854 sec elapsed
+## [1] "Simulation scenario 2_rule_based_mis_specified_All_data.RData"
+## 0.118 sec elapsed
 ```
 
 ```r
@@ -231,10 +294,10 @@ run_all_scenarios(model_params_true = model_params_true,
 compare_rule_vs_model(sim_title = 'Simulation scenario 2',
                       model_params_true = model_params_true,
                       true_model = NULL,
-                      prior_model_params = prior_model_params)
+                      prior_model_params = prior_model_params,use_SoC_data = T)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_2-1.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_2-1.png)<!-- --> 
 
 ```
 ## For the rule-based design, 32% of trials give patient 252 a dose within +/-10% of the true optimal dose
@@ -246,13 +309,76 @@ compare_rule_vs_model(sim_title = 'Simulation scenario 2',
 compare_rule_vs_model(sim_title = 'Simulation scenario 2',
                       model_params_true = NULL,
                       true_model = true_model,
-                      prior_model_params = prior_model_params)
+                      prior_model_params = prior_model_params,use_SoC_data = T)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_2-2.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_2-2.png)<!-- --> 
 
 ```
-## For the rule-based design, 63% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the rule-based design, 62% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the model-based design, 75% of trials give patient 252 a dose within +/-10% of the true optimal dose
+```
+
+```r
+run_all_scenarios(model_params_true = model_params_true,
+                  true_model = true_model,
+                  prior_model_params = prior_model_params,
+                  N_trials = N_trials,
+                  MTT = MTT, TEL = TEL,
+                  N_max = N_max, 
+                  N_batch = N_batch,
+                  max_increment = max_increment, 
+                  Randomisation_p_SOC = Randomisation_p_SOC,
+                  sim_title = 'Simulation scenario 2',
+                  FORCE_RERUN=FORCE_RERUN, 
+                  N_cores = N_cores, 
+                  starting_dose = starting_dose,
+                  SoC = SoC,
+                  use_SoC_data = F)
+```
+
+```
+## Simulation scenario 2 , model based design, well-specified, ...
+## [1] "Simulation scenario 2_model_based_well_specified_Adaptive_data.RData"
+## 0.053 sec elapsed
+## Simulation scenario 2 , model based design, mis-specified, ...
+## [1] "Simulation scenario 2_model_based_mis_specified_Adaptive_data.RData"
+## 0.053 sec elapsed
+## Simulation scenario 2 , rule based design, well-specified, ...
+## [1] "Simulation scenario 2_rule_based_well_specified_All_data.RData"
+## 0.104 sec elapsed
+## Simulation scenario 2 , rule based design, mis-specified, ...
+## [1] "Simulation scenario 2_rule_based_mis_specified_All_data.RData"
+## 0.101 sec elapsed
+```
+
+```r
+# Comparison in well-specified case
+compare_rule_vs_model(sim_title = 'Simulation scenario 2',
+                      model_params_true = model_params_true,
+                      true_model = NULL,
+                      prior_model_params = prior_model_params,use_SoC_data = F)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_2-3.png)<!-- --> 
+
+```
+## For the rule-based design, 32% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the model-based design, 41% of trials give patient 252 a dose within +/-10% of the true optimal dose
+```
+
+```r
+# Comparison in mis-specified case
+compare_rule_vs_model(sim_title = 'Simulation scenario 2',
+                      model_params_true = NULL,
+                      true_model = true_model,
+                      prior_model_params = prior_model_params,use_SoC_data = F)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_2-4.png)<!-- --> 
+
+```
+## For the rule-based design, 62% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ## For the model-based design, 75% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ```
 
@@ -278,21 +404,8 @@ model_params_true = list(beta_tox = true_beta_tox,
                          alpha_eff = true_alpha_eff)
 
 # mis-specified simulation truth
-xs = seq(0, 1000, by=.1)
-tox_zero = 1; tox_MTD = true_MTD
-slope_tox = MTT/(tox_MTD - tox_zero)
-intercept_tox = -slope_tox * tox_zero
-ys = slope_tox*xs + intercept_tox
-ys[ys>1]=1; ys[ys<0]=0
-f_true_tox = approxfun(x = xs, y = ys, rule = 2)
-
-eff_zero = 1; eff_TED = true_TED
-slope_eff = TEL/(eff_TED - eff_zero)
-intercept_eff = -slope_eff * eff_zero
-ys = slope_eff*xs + intercept_eff
-ys[ys>1]=1; ys[ys<0]=0
-f_true_eff = approxfun(x = xs, ys, rule = 2)
-true_model = list(tox = f_true_tox, eff = f_true_eff)
+true_model = make_linear_dose_response(MTT, true_MTD, tox_zero=1,
+                                       TEL, true_TED, eff_zero=1)
 
 run_all_scenarios(model_params_true = model_params_true,
                   true_model = true_model,
@@ -307,22 +420,22 @@ run_all_scenarios(model_params_true = model_params_true,
                   FORCE_RERUN=FORCE_RERUN, 
                   N_cores = N_cores, 
                   starting_dose = starting_dose,
-                  SoC = SoC)
+                  SoC = SoC, use_SoC_data = T)
 ```
 
 ```
 ## Simulation scenario 3 , model based design, well-specified, ...
-## [1] "well_specified"
-## 5673.606 sec elapsed
+## [1] "Simulation scenario 3_model_based_well_specified_All_data.RData"
+## 0.055 sec elapsed
 ## Simulation scenario 3 , model based design, mis-specified, ...
-## [1] "mis_specified"
-## 5950.758 sec elapsed
+## [1] "Simulation scenario 3_model_based_mis_specified_All_data.RData"
+## 0.059 sec elapsed
 ## Simulation scenario 3 , rule based design, well-specified, ...
-## [1] "well_specified"
-## 186.256 sec elapsed
+## [1] "Simulation scenario 3_rule_based_well_specified_All_data.RData"
+## 0.118 sec elapsed
 ## Simulation scenario 3 , rule based design, mis-specified, ...
-## [1] "mis_specified"
-## 184.883 sec elapsed
+## [1] "Simulation scenario 3_rule_based_mis_specified_All_data.RData"
+## 0.119 sec elapsed
 ```
 
 ```r
@@ -330,13 +443,13 @@ run_all_scenarios(model_params_true = model_params_true,
 compare_rule_vs_model(sim_title = 'Simulation scenario 3',
                       model_params_true = model_params_true,
                       true_model = NULL,
-                      prior_model_params = prior_model_params)
+                      prior_model_params = prior_model_params,use_SoC_data = T)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_3-1.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_3-1.png)<!-- --> 
 
 ```
-## For the rule-based design, 39% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the rule-based design, 38% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ## For the model-based design, 28% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ```
 
@@ -345,14 +458,76 @@ compare_rule_vs_model(sim_title = 'Simulation scenario 3',
 compare_rule_vs_model(sim_title = 'Simulation scenario 3',
                       model_params_true = NULL,
                       true_model = true_model,
-                      prior_model_params = prior_model_params)
+                      prior_model_params = prior_model_params, use_SoC_data = T)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_3-2.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_3-2.png)<!-- --> 
 
 ```
 ## For the rule-based design, 28% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ## For the model-based design, 27% of trials give patient 252 a dose within +/-10% of the true optimal dose
+```
+
+```r
+run_all_scenarios(model_params_true = model_params_true,
+                  true_model = true_model,
+                  prior_model_params = prior_model_params,
+                  N_trials = N_trials,
+                  MTT = MTT, TEL = TEL,
+                  N_max = N_max, 
+                  N_batch = N_batch,
+                  max_increment = max_increment, 
+                  Randomisation_p_SOC = Randomisation_p_SOC,
+                  sim_title = 'Simulation scenario 3',
+                  FORCE_RERUN=FORCE_RERUN, 
+                  N_cores = N_cores, 
+                  starting_dose = starting_dose,
+                  SoC = SoC, use_SoC_data = F)
+```
+
+```
+## Simulation scenario 3 , model based design, well-specified, ...
+## [1] "Simulation scenario 3_model_based_well_specified_Adaptive_data.RData"
+## 0.055 sec elapsed
+## Simulation scenario 3 , model based design, mis-specified, ...
+## [1] "Simulation scenario 3_model_based_mis_specified_Adaptive_data.RData"
+## 0.055 sec elapsed
+## Simulation scenario 3 , rule based design, well-specified, ...
+## [1] "Simulation scenario 3_rule_based_well_specified_All_data.RData"
+## 0.133 sec elapsed
+## Simulation scenario 3 , rule based design, mis-specified, ...
+## [1] "Simulation scenario 3_rule_based_mis_specified_All_data.RData"
+## 0.121 sec elapsed
+```
+
+```r
+# Comparison in well-specified case
+compare_rule_vs_model(sim_title = 'Simulation scenario 3',
+                      model_params_true = model_params_true,
+                      true_model = NULL,
+                      prior_model_params = prior_model_params,use_SoC_data = F)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_3-3.png)<!-- --> 
+
+```
+## For the rule-based design, 38% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the model-based design, 27% of trials give patient 252 a dose within +/-10% of the true optimal dose
+```
+
+```r
+# Comparison in mis-specified case
+compare_rule_vs_model(sim_title = 'Simulation scenario 3',
+                      model_params_true = NULL,
+                      true_model = true_model,
+                      prior_model_params = prior_model_params, use_SoC_data = F)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_3-4.png)<!-- --> 
+
+```
+## For the rule-based design, 28% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the model-based design, 25% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ```
 
 ## Simulation 4
@@ -375,21 +550,9 @@ model_params_true = list(beta_tox = true_beta_tox,
                          alpha_eff = true_alpha_eff)
 
 # mis-specified simulation truth
-xs = seq(0, 1000, by=.1)
-tox_zero = 1; tox_MTD = true_MTD
-slope_tox = MTT/(tox_MTD - tox_zero)
-intercept_tox = -slope_tox * tox_zero
-ys = slope_tox*xs + intercept_tox
-ys[ys>1]=1; ys[ys<0]=0
-f_true_tox = approxfun(x = xs, y = ys, rule = 2)
-
-eff_zero = 1; eff_TED = true_TED
-slope_eff = TEL/(eff_TED - eff_zero)
-intercept_eff = -slope_eff * eff_zero
-ys = slope_eff*xs + intercept_eff
-ys[ys>1]=1; ys[ys<0]=0
-f_true_eff = approxfun(x = xs, ys, rule = 2)
-true_model = list(tox = f_true_tox, eff = f_true_eff)
+# mis-specified simulation truth
+true_model = make_linear_dose_response(MTT, true_MTD, tox_zero=1,
+                                       TEL, true_TED, eff_zero=1)
 
 run_all_scenarios(model_params_true = model_params_true,
                   true_model = true_model,
@@ -404,22 +567,23 @@ run_all_scenarios(model_params_true = model_params_true,
                   FORCE_RERUN=FORCE_RERUN, 
                   N_cores = N_cores, 
                   starting_dose = starting_dose,
-                  SoC = SoC)
+                  SoC = SoC,
+                  use_SoC_data = T)
 ```
 
 ```
 ## Simulation scenario 4 , model based design, well-specified, ...
-## [1] "well_specified"
-## 5380.429 sec elapsed
+## [1] "Simulation scenario 4_model_based_well_specified_All_data.RData"
+## 0.064 sec elapsed
 ## Simulation scenario 4 , model based design, mis-specified, ...
-## [1] "mis_specified"
-## 5539.835 sec elapsed
+## [1] "Simulation scenario 4_model_based_mis_specified_All_data.RData"
+## 0.066 sec elapsed
 ## Simulation scenario 4 , rule based design, well-specified, ...
-## [1] "well_specified"
-## 183.128 sec elapsed
+## [1] "Simulation scenario 4_rule_based_well_specified_All_data.RData"
+## 0.131 sec elapsed
 ## Simulation scenario 4 , rule based design, mis-specified, ...
-## [1] "mis_specified"
-## 186.413 sec elapsed
+## [1] "Simulation scenario 4_rule_based_mis_specified_All_data.RData"
+## 0.119 sec elapsed
 ```
 
 ```r
@@ -427,13 +591,13 @@ run_all_scenarios(model_params_true = model_params_true,
 compare_rule_vs_model(sim_title = 'Simulation scenario 4',
                       model_params_true = model_params_true,
                       true_model = NULL,
-                      prior_model_params = prior_model_params)
+                      prior_model_params = prior_model_params, use_SoC_data = T)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_4-1.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_4-1.png)<!-- --> 
 
 ```
-## For the rule-based design, 14% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the rule-based design, 13% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ## For the model-based design, 65% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ```
 
@@ -442,32 +606,90 @@ compare_rule_vs_model(sim_title = 'Simulation scenario 4',
 compare_rule_vs_model(sim_title = 'Simulation scenario 4',
                       model_params_true = NULL,
                       true_model = true_model,
-                      prior_model_params = prior_model_params)
+                      prior_model_params = prior_model_params, use_SoC_data = T)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/simulation_scenario_4-2.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_4-2.png)<!-- --> 
 
 ```
 ## For the rule-based design, 88% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ## For the model-based design, 3% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ```
 
+```r
+run_all_scenarios(model_params_true = model_params_true,
+                  true_model = true_model,
+                  prior_model_params = prior_model_params,
+                  N_trials = N_trials,
+                  MTT = MTT, TEL = TEL,
+                  N_max = N_max, 
+                  N_batch = N_batch,
+                  max_increment = max_increment, 
+                  Randomisation_p_SOC = Randomisation_p_SOC,
+                  sim_title = 'Simulation scenario 4',
+                  FORCE_RERUN=FORCE_RERUN, 
+                  N_cores = N_cores, 
+                  starting_dose = starting_dose,
+                  SoC = SoC,
+                  use_SoC_data = F)
+```
+
+```
+## Simulation scenario 4 , model based design, well-specified, ...
+## [1] "Simulation scenario 4_model_based_well_specified_Adaptive_data.RData"
+## 0.053 sec elapsed
+## Simulation scenario 4 , model based design, mis-specified, ...
+## [1] "Simulation scenario 4_model_based_mis_specified_Adaptive_data.RData"
+## 0.055 sec elapsed
+## Simulation scenario 4 , rule based design, well-specified, ...
+## [1] "Simulation scenario 4_rule_based_well_specified_All_data.RData"
+## 0.103 sec elapsed
+## Simulation scenario 4 , rule based design, mis-specified, ...
+## [1] "Simulation scenario 4_rule_based_mis_specified_All_data.RData"
+## 0.104 sec elapsed
+```
+
+```r
+# Comparison in well-specified case
+compare_rule_vs_model(sim_title = 'Simulation scenario 4',
+                      model_params_true = model_params_true,
+                      true_model = NULL,
+                      prior_model_params = prior_model_params, use_SoC_data = F)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_4-3.png)<!-- --> 
+
+```
+## For the rule-based design, 13% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the model-based design, 56% of trials give patient 252 a dose within +/-10% of the true optimal dose
+```
+
+```r
+# Comparison in mis-specified case
+compare_rule_vs_model(sim_title = 'Simulation scenario 4',
+                      model_params_true = NULL,
+                      true_model = true_model,
+                      prior_model_params = prior_model_params, use_SoC_data = F)
+```
+
+![](Sample_Size_Simulation_Study_files/figure-latex/simulation_scenario_4-4.png)<!-- --> 
+
+```
+## For the rule-based design, 88% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the model-based design, 19% of trials give patient 252 a dose within +/-10% of the true optimal dose
+```
+
 
 # Idiosyncratic toxicity
 
-This simulation assumes a dose independent probability of having a toxic event. 
-First we simulate a trial whereby the overall toxicity is higher than 5%
+This simulation assumes a dose-independent probability of having a toxic event. 
+We simulate a trial whereby the overall toxicity is 15%
 
 
 ```r
-# mis-specified simulation truth
-true_TED = 60
-f_true_tox = approxfun(x = c(1, 400), 
-                       y = c(.15, .15), rule = 2)
-true_model = list(tox = f_true_tox, eff = f_true_eff)
 model_params_true = NULL
 tic()
-Full_Simulation(model_params_true = model_params_true,
+Full_Simulation(model_params_true = NULL,
                 true_model = true_model,
                 prior_model_params = prior_model_params,
                 N_trials = N_trials,
@@ -481,11 +703,11 @@ Full_Simulation(model_params_true = model_params_true,
                 N_cores = N_cores, 
                 design_type = 'model_based',
                 starting_dose = starting_dose,
-                SoC = SoC)
+                SoC = SoC,use_SoC_data = T)
 ```
 
 ```
-## [1] "mis_specified"
+## [1] "Simulation scenario 5_model_based_mis_specified_All_data.RData"
 ```
 
 ```r
@@ -503,11 +725,11 @@ Full_Simulation(model_params_true = NULL,
                 N_cores = N_cores, 
                 design_type = 'rule_based',
                 starting_dose = starting_dose,
-                SoC = SoC)
+                SoC = SoC, use_SoC_data = T)
 ```
 
 ```
-## [1] "mis_specified"
+## [1] "Simulation scenario 5_rule_based_mis_specified_All_data.RData"
 ```
 
 ```r
@@ -515,7 +737,7 @@ toc()
 ```
 
 ```
-## 5026.728 sec elapsed
+## 205.767 sec elapsed
 ```
 
 ```r
@@ -523,13 +745,14 @@ toc()
 compare_rule_vs_model(sim_title = 'Simulation scenario 5',
                       model_params_true = NULL,
                       true_model = true_model,
-                      prior_model_params = prior_model_params,idiosyncratic = T,plot_vstar = F)
+                      prior_model_params = prior_model_params,use_SoC_data = T,
+                      idiosyncratic = T,plot_vstar = F)
 ```
 
-![](Sample_Size_Simulation_Study_files/figure-html/idiosyncratic-1.png)<!-- -->
+![](Sample_Size_Simulation_Study_files/figure-latex/idiosyncratic-1.png)<!-- --> 
 
 ```
-## For the rule-based design, 0% of trials give patient 252 a dose within +/-10% of the true optimal dose
+## For the rule-based design, 88% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ## For the model-based design, 0% of trials give patient 252 a dose within +/-10% of the true optimal dose
 ```
 

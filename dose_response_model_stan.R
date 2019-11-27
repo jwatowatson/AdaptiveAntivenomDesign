@@ -3,7 +3,7 @@ library(rstan)
 mod = "
 
 data {
-  int<lower=1> N;
+  int<lower=0> N;
   int<lower=0,upper=1> y_tox[N];
   int<lower=0,upper=1> y_eff[N];
   vector[N] x;
