@@ -12,7 +12,9 @@ generate_sim_truth_outcomes = function(log2_doses,
   if(!is.null(model_params)){
     # well-specified logistic model
     ptox = inv.logit(model_params$alpha_tox + model_params$beta_tox * log2_doses)
-    peff = inv.logit(model_params$alpha_eff + model_params$beta_eff * log2_doses)
+    peff = pnorm(q = 2^log2_doses, 
+                 mean = model_params$mu_antivenom, 
+                 sd = model_params$sd_antivenom)
   } else {
     # mis-specified linear model
     ptox = true_model$tox(2^log2_doses)
@@ -91,12 +93,15 @@ run_trial = function(model_params_true,
   Trial_data$TED = 2^out$TED
   N_current = N_current + N_batch
   
+  current_model_params = prior_model_params
   # iteratively simulate batches of patients until reach max sample size
   while(N_current < N_max){
-    # Estimate Bayesian MAP
+    # Estimate posterior
     posterior_model_params = estimate_posterior_params(Trial_data=Trial_data,
                                                        prior_model_params=prior_model_params,
+                                                       current_model_params=current_model_params,
                                                        use_SoC_data=use_SoC_data)
+    current_model_params=posterior_model_params
     out = Estimate_log2_Vstar(model_params = posterior_model_params,
                               true_model = NULL,
                               MTT = MTT, TEL = TEL)
@@ -107,6 +112,7 @@ run_trial = function(model_params_true,
       print('Estimated optimal dose less than 1 vial')
       current_dose=1
     }
+    
     # simulate outcomes 
     Next_batch = Generate_outcomes(model_params = model_params_true, 
                                    true_model = true_model,
@@ -206,7 +212,7 @@ Full_Simulation = function(model_params_true, # parameters for sim truth when we
   }
   
   ##*** Run the simulated trial ***
-  # We don't rerun unless FORCE_RERUN is TRUE
+  # We don't rerun unless FORCE_RERUN = TRUE
   f_name = paste(sim_title,'_',design_type,'_',specification, '_', SoC_use,'.RData', sep = '')
   print(f_name)
   if(FORCE_RERUN | (!f_name %in% list.files(path = 'SimulationOutputs/')) ){
@@ -214,7 +220,6 @@ Full_Simulation = function(model_params_true, # parameters for sim truth when we
     if(is.na(N_cores)) N_cores = detectCores()-1
     registerDoParallel(N_cores)
     Summary_trials = foreach(s=1:N_trials, .combine = cbind) %dopar% {
-      
       if(design_type == 'model_based'){
         Trial_data = run_trial(model_params_true = model_params_true,
                                true_model = true_model,

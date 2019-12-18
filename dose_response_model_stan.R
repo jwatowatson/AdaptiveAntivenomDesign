@@ -1,4 +1,5 @@
 library(rstan)
+rstan_options(auto_write = TRUE)
 
 mod = "
 
@@ -6,34 +7,34 @@ data {
   int<lower=0> N;
   int<lower=0,upper=1> y_tox[N];
   int<lower=0,upper=1> y_eff[N];
-  vector[N] x;
+  vector[N] dose;
   real beta_tox;
   real beta_tox_sd;
   real alpha_tox;
   real alpha_tox_sd;
-  real beta_eff;
-  real beta_eff_sd;
-  real alpha_eff;
-  real alpha_eff_sd;
+  real<lower=0> mu_antivenom_mean;
+  real<lower=0> mu_antivenom_sd;
+  real<lower=0> sd_antivenom_mean;
+  real<lower=0> sd_antivenom_sd;
 }
 
 parameters {
   real beta_t;
   real alpha_t;
-  real beta_e;
-  real alpha_e;
+  real<lower=0> mu_antivenom;
+  real<lower=0> sd_antivenom;
 }
 
 model {
   // priors
   beta_t ~ normal(beta_tox,beta_tox_sd);
   alpha_t ~ normal(alpha_tox,alpha_tox_sd);
-  beta_e ~ normal(beta_eff,beta_eff_sd);
-  alpha_e ~ normal(alpha_eff,alpha_eff_sd);
+  mu_antivenom ~ normal(mu_antivenom_mean, mu_antivenom_sd);
+  sd_antivenom ~ normal(sd_antivenom_mean, sd_antivenom_sd);
   
   // likelihood
-  y_tox ~ bernoulli_logit(alpha_t + beta_t * x);
-  y_eff ~ bernoulli_logit(alpha_e + beta_e * x);
+  y_tox ~ bernoulli_logit(alpha_t + beta_t * log2(dose));
+  y_eff ~ bernoulli(Phi_approx( (dose - mu_antivenom)/sd_antivenom));
 }
 "
 

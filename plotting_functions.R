@@ -1,7 +1,7 @@
 plot_prior_versus_truth = function(model_params_true,
                                    true_model,
                                    prior_model_params,
-                                   sim_title, plot_vstar = T){
+                                   sim_title, plot_vstar = T, MTT, TEL){
   
   if(is.null(model_params_true) & is.null(true_model)) {
     stop('One of model_params_true or true_model has to be specified (plot_prior_versus_truth)')
@@ -14,8 +14,8 @@ plot_prior_versus_truth = function(model_params_true,
   
   # ** Set up parameters **
   K = 1000
-  xs = seq(0,8, length.out = K)
-  N_samples = 1000
+  xs = seq(1,5, length.out = K)
+  N_samples = 5000
   ys_tox = array(dim = c(N_samples, K))
   ys_eff = array(dim = c(N_samples, K))
   mypallete = brewer.pal(8,'Dark2')
@@ -25,37 +25,39 @@ plot_prior_versus_truth = function(model_params_true,
     ys_truth_eff=true_model$eff(2^xs)
     ys_truth_tox=true_model$tox(2^xs)
   } else {
-    ys_truth_eff=inv.logit(model_params_true$alpha_eff + model_params_true$beta_eff*xs)
+    ys_truth_eff=pnorm(q = 2^xs, mean = model_params_true$mu_antivenom, 
+                       sd = model_params_true$sd_antivenom)
     ys_truth_tox=inv.logit(model_params_true$alpha_tox + model_params_true$beta_tox*xs)
   }
-  plot(xs, 100*ys_truth_eff, type='l',xlab = 'Dose (mL)', ylab = 'Probability of outcome (%)', 
-       xaxt='n', ylim=c(0,100),lwd=2, col=mypallete[3], yaxt='n')
+  plot(10 * 2^xs, 100*ys_truth_eff, type='l',xlab = 'Dose (mL)', ylab = 'Probability of outcome (%)', 
+        ylim=c(0,100),lwd=2, col=mypallete[3], yaxt='n')
   axis(2, at = c(5,20,50,80,95))
-  axis(1, at = 1:6, labels = 10*2^(1:6))
   
-  lines(xs, 100*ys_truth_tox,lwd=2,col=mypallete[1])
+  lines(10 * 2^xs, 100*ys_truth_tox,lwd=2,col=mypallete[1])
   abline(h = 100*c(TEL, MTT))
   # plot prior guess
-  lines(xs, 100*inv.logit(Prior_alpha_tox + Prior_beta_tox*xs),
+  lines(10 * 2^xs, 100*inv.logit(Prior_alpha_tox + Prior_beta_tox*xs),
         col=mypallete[5],lty=3,lwd=2)
   for(i in 1:N_samples){
     alpha_tox = rnorm(1, prior_model_params$alpha_tox, prior_model_params$alpha_tox_sd)
     beta_tox = rnorm(1, prior_model_params$beta_tox, prior_model_params$beta_tox_sd)
     ys_tox[i,] = inv.logit(alpha_tox + beta_tox*xs)
   }
+  xs=10*2^xs
   polygon(x = c(xs,rev(xs)), y = 100*c(apply(ys_tox,2,quantile,prob=0.025),
                                        rev(apply(ys_tox,2,quantile,prob=0.975))), 
           col = adjustcolor(mypallete[5],alpha.f = .2), border = NA)
   
-  lines(xs, 100*inv.logit(Prior_alpha_eff + Prior_beta_eff*xs),lwd=2,
+  lines(xs, 100*pnorm(q = xs/10, mean = prior_model_params$mu_antivenom, 
+                  sd = prior_model_params$sd_antivenom),lwd=2,
         col=mypallete[8],lty=3)
   for(i in 1:N_samples){
-    alpha_eff = rnorm(1, prior_model_params$alpha_eff, prior_model_params$alpha_eff_sd)
-    beta_eff = rnorm(1, prior_model_params$beta_eff, prior_model_params$beta_eff_sd)
-    ys_eff[i,] = inv.logit(alpha_eff + beta_eff*xs)
+    mymu = rnorm(1, prior_model_params$mu_antivenom, prior_model_params$mu_antivenom_sd)
+    mysd = rtruncnorm(1, prior_model_params$sd_antivenom, prior_model_params$sd_antivenom_sd,a = 0)
+    ys_eff[i,] = pnorm(q = xs/10, mean = mymu, sd = mysd)
   }
-  polygon(x = c(xs,rev(xs)), y = 100*c(apply(ys_eff,2,quantile,prob=0.025),
-                                       rev(apply(ys_eff,2,quantile,prob=0.975))), 
+  polygon(x = c(xs,rev(xs)), y = 100*c(apply(ys_eff,2,quantile,prob=0.025,na.rm=T),
+                                       rev(apply(ys_eff,2,quantile,prob=0.975,na.rm=T))), 
           col = adjustcolor(mypallete[8],alpha.f = .2), border = NA)
   out = Estimate_log2_Vstar(model_params = model_params_true, 
                             true_model = true_model, 
@@ -64,9 +66,8 @@ plot_prior_versus_truth = function(model_params_true,
                                   true_model = NULL, 
                                   MTT = MTT, TEL = TEL)
   if(plot_vstar){
-    abline(v = out$Vstar, col='red',lwd=3)
-    abline(v = out_prior$Vstar, 
-           col='red',lwd=2,lty=3)
+    abline(v = 10 * 2^out$Vstar, col='red',lwd=3)
+    abline(v = 10 * 2^out_prior$Vstar, col='red',lwd=2,lty=3)
   }
   
   
@@ -84,7 +85,8 @@ compare_rule_vs_model = function(sim_title,
                                  model_params_true,
                                  prior_model_params, 
                                  use_SoC_data,
-                                 idiosyncratic = F, plot_vstar = T){
+                                 idiosyncratic = F, 
+                                 plot_vstar = T, MTT, TEL){
   
   if(is.null(model_params_true) & is.null(true_model)) {
     stop('One of model_params_true or true_model has to be specified (compare_rule_vs_model)')
@@ -122,7 +124,8 @@ compare_rule_vs_model = function(sim_title,
   plot_prior_versus_truth(model_params_true = model_params_true,
                           true_model = true_model,
                           prior_model_params = prior_model_params,
-                          sim_title = sim_title, plot_vstar = plot_vstar)
+                          sim_title = sim_title, plot_vstar = plot_vstar,
+                          MTT = MTT, TEL = TEL)
   mtext(text = 'a',side = 3,line = 2,at = 0,cex = 2)
   
   # ******* Plot the estimated optimal dose from the model-based design *******
@@ -143,7 +146,7 @@ compare_rule_vs_model = function(sim_title,
   axis(2, at = my_ys, labels = 10 * 2^(my_ys))
   out = Estimate_log2_Vstar(model_params = model_params_true,
                             true_model = true_model,
-                            MTT = .05,TEL = .95)
+                            MTT = MTT,TEL = TEL)
   vstar = 10 * 2^out$Vstar
   
   if(plot_vstar) abline(h = out$MTD,col=mypallete[1], lwd=2)

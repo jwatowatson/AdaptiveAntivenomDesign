@@ -13,9 +13,10 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(cache = T, cache.comments = FALSE, 
                       include = TRUE, cache.lazy = F,
-                      fig.width = 12, fig.height = 12,
+                      fig.width = 9, fig.height = 9,
                       fig.pos = 'H', dev = 'png', dpi = 300)
 library(tictoc)
+library(truncnorm)
 library(rootSolve)
 library(RColorBrewer)
 library(boot)
@@ -23,7 +24,7 @@ library(rstan)
 library(doParallel)
 library(foreach)
 FORCE_RERUN = F
-N_cores = 7 
+N_cores = 8
 
 source('dose_response_model_stan.R') # compile stan dose-response model
 ```
@@ -37,10 +38,10 @@ source('plotting_functions.R')
 source('wrapper_function_all_scenarios.R')
 TEL = 0.95  # Target Efficacy Level
 MTT = 0.05  # Maximum Tolerated Toxicity
-N_max = 250 # Maximum number of patients recruited
+N_max = 260 # Maximum number of patients recruited
 max_increment = 1 # Maximum dose increment to doses previously unseen
 N_trials = 2000
-N_batch = 3
+N_batch = 4
 Randomisation_p_SOC = 0.2 # proportion randomised to the standard of care dose
 starting_dose = 12 # starting dose in adaptive arm
 SoC = 8 # Standard of Care
@@ -50,16 +51,14 @@ solve_beta = function(alpha_val, v_star, y_star){
   beta_val = ( logit(y_star) - alpha_val ) / log2(v_star)
   return(beta_val)
 }
+
+optimal_doses = array(NA,dim = 7)
 ```
 
 ## Priors
 
 ```{r prior}
 #******* Prior point estimates *********
-Prior_TED = 12;                   # prior estimate of the Target Efficacious Dose
-Prior_alpha_eff = logit(1/10)       # prior estimate of the efficacy with one vial
-Prior_beta_eff = solve_beta(alpha_val = Prior_alpha_eff, v_star = Prior_TED, y_star = TEL)
-
 Prior_MTD = 32;                    # prior estimate of the Maximum Tolerated Dose
 Prior_alpha_tox = logit(1/1000)    # prior estimate of the toxicity after 1 vial
 Prior_beta_tox = solve_beta(alpha_val = Prior_alpha_tox, v_star = Prior_MTD, y_star = MTT)
@@ -69,47 +68,20 @@ prior_model_params = list(beta_tox = Prior_beta_tox,
                           beta_tox_sd = .05,
                           alpha_tox=Prior_alpha_tox,
                           alpha_tox_sd = 2,
-                          beta_eff=Prior_beta_eff, 
-                          beta_eff_sd = .05, 
-                          alpha_eff=Prior_alpha_eff,
-                          alpha_eff_sd = 2)
+                          mu_antivenom = 8,
+                          mu_antivenom_sd = 3,
+                          sd_antivenom = 5,
+                          sd_antivenom_sd = 2)
 ```
 
-## Mis-specified dose response
 
-This function computes linear dose-response curves based on the parameters (MTT, TEL etc).
-
-```{r}
-make_linear_dose_response = function(MTT, true_MTD, tox_zero=1,
-                                     TEL, true_TED, eff_zero=1){
-  log_xs = log2(seq(0, 10000, by=.1))
-  
-  tox_MTD = true_MTD
-  slope_tox = MTT/(log2(tox_MTD) - log2(tox_zero))
-  intercept_tox = -slope_tox * log2(tox_zero)
-  ys = slope_tox*log_xs + intercept_tox
-  ys[ys>1]=1; ys[ys<0]=0
-  f_true_tox = approxfun(x = 2^log_xs, y = ys, rule = 2)
-  
-  eff_TED = true_TED
-  slope_eff = TEL/(log2(eff_TED) - log2(eff_zero))
-  intercept_eff = -slope_eff * log2(eff_zero)
-  ys = slope_eff*log_xs + intercept_eff
-  ys[ys>1]=1; ys[ys<0]=0
-  f_true_eff = approxfun(x = 2^log_xs, ys, rule = 2)
-  true_model = list(tox = f_true_tox, eff = f_true_eff)
-  
-  return(true_model)
-}
-```
 
 ## Simulation 1
 
 ```{r simulation_scenario_1, cap="Simulation scenario 1"}
-true_alpha_eff = logit(1/50)
 true_TED = 20  # 
-true_beta_eff = solve_beta(alpha_val = true_alpha_eff, v_star = true_TED, y_star = TEL)
-
+true_antivenom_mean = 10
+true_antivenom_sd = (true_TED - true_antivenom_mean)/qnorm(.95)
 
 true_alpha_tox = logit(1/500)  # toxicity at 1 vial
 true_MTD = 8  # simulation truth for the MTD 
@@ -118,74 +90,59 @@ true_beta_tox = solve_beta(alpha_val = true_alpha_tox, v_star = true_MTD, y_star
 # well-specified simulation truth
 model_params_true = list(beta_tox = true_beta_tox,
                          alpha_tox=true_alpha_tox,
-                         beta_eff=true_beta_eff, 
-                         alpha_eff=true_alpha_eff)
+                         mu_antivenom=true_antivenom_mean, 
+                         sd_antivenom=true_antivenom_sd)
+optimal_doses[1] = min(true_MTD, true_TED)
+tic()
+Full_Simulation(model_params_true = model_params_true,
+                true_model = NULL,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 1',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'model_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
 
-# mis-specified simulation truth
-true_model = make_linear_dose_response(MTT, true_MTD, tox_zero=1,
-                                       TEL, true_TED, eff_zero=1)
+Full_Simulation(model_params_true = model_params_true,
+                true_model = NULL,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 1',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'rule_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+toc()
 
-run_all_scenarios(model_params_true = model_params_true,
-                  true_model = true_model,
-                  prior_model_params = prior_model_params,
-                  N_trials = N_trials,
-                  MTT = MTT, TEL = TEL,
-                  N_max = N_max, 
-                  N_batch = N_batch,
-                  max_increment = max_increment, 
-                  Randomisation_p_SOC = Randomisation_p_SOC,
-                  sim_title = 'Simulation scenario 1',
-                  FORCE_RERUN=FORCE_RERUN, 
-                  N_cores = N_cores, 
-                  starting_dose = starting_dose,
-                  SoC = SoC, use_SoC_data = T)
-# Comparison in well-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 1',
+
+compare_rule_vs_model(sim_title = 'Simulation scenario 1',true_model = NULL,
                       model_params_true = model_params_true,
-                      true_model = NULL,
-                      prior_model_params = prior_model_params,use_SoC_data = T)
-
-# Comparison in mis-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 1',
-                      model_params_true = NULL,
-                      true_model = true_model,
-                      prior_model_params = prior_model_params,use_SoC_data = T)
-
-run_all_scenarios(model_params_true = model_params_true,
-                  true_model = true_model,
-                  prior_model_params = prior_model_params,
-                  N_trials = N_trials,
-                  MTT = MTT, TEL = TEL,
-                  N_max = N_max, 
-                  N_batch = N_batch,
-                  max_increment = max_increment, 
-                  Randomisation_p_SOC = Randomisation_p_SOC,
-                  sim_title = 'Simulation scenario 1',
-                  FORCE_RERUN=FORCE_RERUN, 
-                  N_cores = N_cores, 
-                  starting_dose = starting_dose,
-                  SoC = SoC, use_SoC_data = F)
-
-# Comparison in well-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 1',
-                      model_params_true = model_params_true,
-                      true_model = NULL,
-                      prior_model_params = prior_model_params,use_SoC_data = F)
-
-# Comparison in mis-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 1',
-                      model_params_true = NULL,
-                      true_model = true_model,
-                      prior_model_params = prior_model_params,use_SoC_data = F)
+                      prior_model_params = prior_model_params,use_SoC_data = T,
+                      idiosyncratic = F,plot_vstar = T, MTT = MTT, TEL = TEL)
 ```
 
 
 ## Simulation 2
 
 ```{r simulation_scenario_2}
-true_alpha_eff = logit(1/20)
-true_TED = 8  # simulation truth for the MED 
-true_beta_eff = solve_beta(alpha_val = true_alpha_eff, v_star = true_TED, y_star = TEL)
+true_TED = 8  
+true_antivenom_mean = 4
+true_antivenom_sd = (true_TED - true_antivenom_mean)/qnorm(.95)
 
 true_alpha_tox = logit(1/500)  # toxicity at 1 vial
 true_MTD = 20  # simulation truth for the MTD 
@@ -194,153 +151,121 @@ true_beta_tox = solve_beta(alpha_val = true_alpha_tox, v_star = true_MTD, y_star
 
 # well-specified simulation truth
 model_params_true = list(beta_tox = true_beta_tox,
-                         alpha_tox = true_alpha_tox,
-                         beta_eff = true_beta_eff, 
-                         alpha_eff = true_alpha_eff)
+                         alpha_tox=true_alpha_tox,
+                         mu_antivenom=true_antivenom_mean, 
+                         sd_antivenom=true_antivenom_sd)
+optimal_doses[2] = min(true_MTD, true_TED)
 
-# mis-specified simulation truth
-true_model = make_linear_dose_response(MTT, true_MTD, tox_zero=1,
-                                       TEL, true_TED, eff_zero=1)
+tic()
+Full_Simulation(model_params_true = model_params_true,
+                true_model = NULL,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 2',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'model_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
 
-run_all_scenarios(model_params_true = model_params_true,
-                  true_model = true_model,
-                  prior_model_params = prior_model_params,
-                  N_trials = N_trials,
-                  MTT = MTT, TEL = TEL,
-                  N_max = N_max, 
-                  N_batch = N_batch,
-                  max_increment = max_increment, 
-                  Randomisation_p_SOC = Randomisation_p_SOC,
-                  sim_title = 'Simulation scenario 2',
-                  FORCE_RERUN=FORCE_RERUN, 
-                  N_cores = N_cores, 
-                  starting_dose = starting_dose,
-                  SoC = SoC,
-                  use_SoC_data = T)
-# Comparison in well-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 2',
+Full_Simulation(model_params_true = model_params_true,
+                true_model = NULL,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 2',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'rule_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+toc()
+
+compare_rule_vs_model(sim_title = 'Simulation scenario 2',true_model = NULL,
                       model_params_true = model_params_true,
-                      true_model = NULL,
-                      prior_model_params = prior_model_params,use_SoC_data = T)
-
-# Comparison in mis-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 2',
-                      model_params_true = NULL,
-                      true_model = true_model,
-                      prior_model_params = prior_model_params,use_SoC_data = T)
-
-run_all_scenarios(model_params_true = model_params_true,
-                  true_model = true_model,
-                  prior_model_params = prior_model_params,
-                  N_trials = N_trials,
-                  MTT = MTT, TEL = TEL,
-                  N_max = N_max,
-                  N_batch = N_batch,
-                  max_increment = max_increment,
-                  Randomisation_p_SOC = Randomisation_p_SOC,
-                  sim_title = 'Simulation scenario 2',
-                  FORCE_RERUN=FORCE_RERUN,
-                  N_cores = N_cores,
-                  starting_dose = starting_dose,
-                  SoC = SoC,
-                  use_SoC_data = F)
-# Comparison in well-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 2',
-                      model_params_true = model_params_true,
-                      true_model = NULL,
-                      prior_model_params = prior_model_params,use_SoC_data = F)
-
-# Comparison in mis-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 2',
-                      model_params_true = NULL,
-                      true_model = true_model,
-                      prior_model_params = prior_model_params,use_SoC_data = F)
+                      prior_model_params = prior_model_params,use_SoC_data = T,
+                      idiosyncratic = F,plot_vstar = T, MTT = MTT, TEL = TEL)
 ```
 
 
 ## Simulation 3
 
 ```{r simulation_scenario_3}
-true_alpha_eff = logit(1/100)
-true_TED = 60  # simulation truth for the MED 
-true_beta_eff = solve_beta(alpha_val = true_alpha_eff, v_star = true_TED, y_star = TEL)
-
+true_TED = 60  
+true_antivenom_mean = 30
+true_antivenom_sd = (true_TED - true_antivenom_mean)/qnorm(.95)
 
 true_alpha_tox = logit(1/1000)  # toxicity at 1 vial
 true_MTD = 30  # simulation truth for the MTD 
 true_beta_tox = solve_beta(alpha_val = true_alpha_tox, v_star = true_MTD, y_star = MTT)
 
-
 # well-specified simulation truth
 model_params_true = list(beta_tox = true_beta_tox,
                          alpha_tox = true_alpha_tox,
-                         beta_eff = true_beta_eff, 
-                         alpha_eff = true_alpha_eff)
+                         mu_antivenom=true_antivenom_mean, 
+                         sd_antivenom=true_antivenom_sd)
 
-# mis-specified simulation truth
-true_model = make_linear_dose_response(MTT, true_MTD, tox_zero=1,
-                                       TEL, true_TED, eff_zero=1)
+optimal_doses[3] = min(true_MTD, true_TED)
 
-run_all_scenarios(model_params_true = model_params_true,
-                  true_model = true_model,
-                  prior_model_params = prior_model_params,
-                  N_trials = N_trials,
-                  MTT = MTT, TEL = TEL,
-                  N_max = N_max, 
-                  N_batch = N_batch,
-                  max_increment = max_increment, 
-                  Randomisation_p_SOC = Randomisation_p_SOC,
-                  sim_title = 'Simulation scenario 3',
-                  FORCE_RERUN=FORCE_RERUN, 
-                  N_cores = N_cores, 
-                  starting_dose = starting_dose,
-                  SoC = SoC, use_SoC_data = T)
-# Comparison in well-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 3',
+tic()
+Full_Simulation(model_params_true = model_params_true,
+                true_model = NULL,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 3',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'model_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+
+Full_Simulation(model_params_true = model_params_true,
+                true_model = NULL,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 3',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'rule_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+toc()
+
+compare_rule_vs_model(sim_title = 'Simulation scenario 3',true_model = NULL,
                       model_params_true = model_params_true,
-                      true_model = NULL,
-                      prior_model_params = prior_model_params,use_SoC_data = T)
-
-# Comparison in mis-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 3',
-                      model_params_true = NULL,
-                      true_model = true_model,
-                      prior_model_params = prior_model_params, use_SoC_data = T)
-
-# run_all_scenarios(model_params_true = model_params_true,
-#                   true_model = true_model,
-#                   prior_model_params = prior_model_params,
-#                   N_trials = N_trials,
-#                   MTT = MTT, TEL = TEL,
-#                   N_max = N_max,
-#                   N_batch = N_batch,
-#                   max_increment = max_increment,
-#                   Randomisation_p_SOC = Randomisation_p_SOC,
-#                   sim_title = 'Simulation scenario 3',
-#                   FORCE_RERUN=FORCE_RERUN,
-#                   N_cores = N_cores,
-#                   starting_dose = starting_dose,
-#                   SoC = SoC, use_SoC_data = F)
-# Comparison in well-specified case
-#compare_rule_vs_model(sim_title = 'Simulation scenario 3',
-#                      model_params_true = model_params_true,
-#                      true_model = NULL,
-#                      prior_model_params = prior_model_params,use_SoC_data = F)
-
-# Comparison in mis-specified case
-#compare_rule_vs_model(sim_title = 'Simulation scenario 3',
-#                      model_params_true = NULL,
-#                      true_model = true_model,
-#                      prior_model_params = prior_model_params, use_SoC_data = F)
+                      prior_model_params = prior_model_params,use_SoC_data = T,
+                      idiosyncratic = F,plot_vstar = T, MTT = MTT, TEL = TEL)
 ```
 
 ## Simulation 4
 
 ```{r simulation_scenario_4}
-true_alpha_eff = logit(1/100)
-true_TED = 30  # simulation truth for the MED 
-true_beta_eff = solve_beta(alpha_val = true_alpha_eff, v_star = true_TED, y_star = TEL)
-
+true_TED = 30  
+true_antivenom_mean = 15
+true_antivenom_sd = (true_TED - true_antivenom_mean)/qnorm(.95)
 
 true_alpha_tox = logit(1/1000)  # toxicity at 1 vial
 true_MTD = 60  # simulation truth for the MTD 
@@ -349,117 +274,277 @@ true_beta_tox = solve_beta(alpha_val = true_alpha_tox, v_star = true_MTD, y_star
 # well-specified simulation truth
 model_params_true = list(beta_tox = true_beta_tox,
                          alpha_tox = true_alpha_tox,
-                         beta_eff = true_beta_eff, 
-                         alpha_eff = true_alpha_eff)
+                         mu_antivenom=true_antivenom_mean, 
+                         sd_antivenom=true_antivenom_sd)
+optimal_doses[4] = min(true_MTD, true_TED)
 
-# mis-specified simulation truth
-true_model = make_linear_dose_response(MTT, true_MTD, tox_zero=1,
-                                       TEL, true_TED, eff_zero=1)
+tic()
+Full_Simulation(model_params_true = model_params_true,
+                true_model = NULL,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 4',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'model_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
 
-run_all_scenarios(model_params_true = model_params_true,
-                  true_model = true_model,
-                  prior_model_params = prior_model_params,
-                  N_trials = N_trials,
-                  MTT = MTT, TEL = TEL,
-                  N_max = N_max, 
-                  N_batch = N_batch,
-                  max_increment = max_increment, 
-                  Randomisation_p_SOC = Randomisation_p_SOC,
-                  sim_title = 'Simulation scenario 4',
-                  FORCE_RERUN=FORCE_RERUN, 
-                  N_cores = N_cores, 
-                  starting_dose = starting_dose,
-                  SoC = SoC,
-                  use_SoC_data = T)
-# Comparison in well-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 4',
+Full_Simulation(model_params_true = model_params_true,
+                true_model = NULL,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 4',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'rule_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+toc()
+
+compare_rule_vs_model(sim_title = 'Simulation scenario 4',true_model = NULL,
                       model_params_true = model_params_true,
-                      true_model = NULL,
-                      prior_model_params = prior_model_params, use_SoC_data = T)
-# Comparison in mis-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 4',
-                      model_params_true = NULL,
-                      true_model = true_model,
-                      prior_model_params = prior_model_params, use_SoC_data = T)
-
-run_all_scenarios(model_params_true = model_params_true,
-                  true_model = true_model,
-                  prior_model_params = prior_model_params,
-                  N_trials = N_trials,
-                  MTT = MTT, TEL = TEL,
-                  N_max = N_max,
-                  N_batch = N_batch,
-                  max_increment = max_increment,
-                  Randomisation_p_SOC = Randomisation_p_SOC,
-                  sim_title = 'Simulation scenario 4',
-                  FORCE_RERUN=FORCE_RERUN,
-                  N_cores = N_cores,
-                  starting_dose = starting_dose,
-                  SoC = SoC,
-                  use_SoC_data = F)
-#Comparison in well-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 4',
-                      model_params_true = model_params_true,
-                      true_model = NULL,
-                      prior_model_params = prior_model_params, use_SoC_data = F)
-# Comparison in mis-specified case
-compare_rule_vs_model(sim_title = 'Simulation scenario 4',
-                      model_params_true = NULL,
-                      true_model = true_model,
-                      prior_model_params = prior_model_params, use_SoC_data = F)
+                      prior_model_params = prior_model_params,
+                      use_SoC_data = T, idiosyncratic = F,plot_vstar = T,
+                      MTT = MTT, TEL = TEL)
 ```
 
 
-# Idiosyncratic toxicity
+# Simulation 5 
+Idiosyncratic toxicity
 
 This simulation assumes a dose-independent probability of having a toxic event. 
 We simulate a trial whereby the overall toxicity is 15%
 
 ```{r idiosyncratic}
-# true_model$tox = approxfun(x=c(1,10), y = c(.15,.15), rule = 2)
-# tic()
-# # Model based simulation 
-# Full_Simulation(model_params_true = NULL,
-#                 true_model = true_model,
-#                 prior_model_params = prior_model_params,
-#                 N_trials = N_trials,
-#                 MTT = MTT, TEL = TEL,
-#                 N_max = N_max, 
-#                 N_batch = N_batch,
-#                 max_increment = max_increment, 
-#                 Randomisation_p_SOC = Randomisation_p_SOC,
-#                 sim_title = 'Simulation scenario 5',
-#                 FORCE_RERUN=FORCE_RERUN, 
-#                 N_cores = N_cores, 
-#                 design_type = 'model_based',
-#                 starting_dose = starting_dose,
-#                 SoC = SoC,use_SoC_data = T)
-# 
-# 
-# # Rule based simulation 
-# Full_Simulation(model_params_true = NULL,
-#                 true_model = true_model,
-#                 prior_model_params = prior_model_params,
-#                 N_trials = 10*N_trials,
-#                 MTT = MTT, TEL = TEL,
-#                 N_max = N_max, 
-#                 N_batch = N_batch,
-#                 max_increment = max_increment, 
-#                 Randomisation_p_SOC = Randomisation_p_SOC,
-#                 sim_title = 'Simulation scenario 5',
-#                 FORCE_RERUN=FORCE_RERUN, 
-#                 N_cores = N_cores, 
-#                 design_type = 'rule_based',
-#                 starting_dose = starting_dose,
-#                 SoC = SoC, use_SoC_data = T)
-# toc()
-# 
-# # # Comparison in mis-specified idiosyncratic case
-# compare_rule_vs_model(sim_title = 'Simulation scenario 5',
-#                       model_params_true = NULL,
-#                       true_model = true_model,
-#                       prior_model_params = prior_model_params,use_SoC_data = T,
-#                       idiosyncratic = T,plot_vstar = F)
+true_model = list(tox = approxfun(x = c(1,10), y = c(.15,.15), rule = 2),
+                  eff = approxfun(x = 0:100, 
+                                  y = pnorm(q = 0:100, mean = true_antivenom_mean, 
+                                            sd = true_antivenom_sd),rule=2))
+optimal_doses[5] = 0
+
+tic()
+# Model based simulation
+Full_Simulation(model_params_true = NULL,
+                true_model = true_model,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 5',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'model_based',
+                starting_dose = starting_dose,
+                SoC = SoC,use_SoC_data = T)
+
+
+# Rule based simulation
+Full_Simulation(model_params_true = NULL,
+                true_model = true_model,
+                prior_model_params = prior_model_params,
+                N_trials = 10*N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 5',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'rule_based',
+                starting_dose = starting_dose,
+                SoC = SoC, use_SoC_data = T)
+toc()
+
+# # Comparison in mis-specified idiosyncratic case
+compare_rule_vs_model(sim_title = 'Simulation scenario 5',
+                      model_params_true = NULL,
+                      true_model = true_model,
+                      prior_model_params = prior_model_params,
+                      use_SoC_data = T, idiosyncratic = T,plot_vstar = F, 
+                      MTT = MTT, TEL = TEL)
 ```
 
+
+## Simulation 6
+
+Same as simulation 2 but with mis-specified efficacy dose response
+
+```{r simulation_scenario_6}
+true_alpha_tox = logit(1/500)  # toxicity at 1 vial
+true_MTD = 20  # simulation truth for the MTD 
+true_beta_tox = solve_beta(alpha_val = true_alpha_tox, v_star = true_MTD, y_star = MTT)
+
+true_rate = 1/2.7
+# mis-specified simulation truth
+true_model = list(eff = approxfun(x =0:100, y = pexp(q = 0:100, rate = true_rate), rule = 2),
+                  tox = approxfun(x = 0:200, 
+                                  y = inv.logit(true_alpha_tox + true_beta_tox*log2(0:200)),rule=2))
+optimal_doses[6] = qexp(p = TEL, rate = true_rate)
+
+tic()
+Full_Simulation(model_params_true = NULL,
+                true_model = true_model,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 6',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'model_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+
+Full_Simulation(model_params_true = NULL,
+                true_model = true_model,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 6',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'rule_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+toc()
+
+compare_rule_vs_model(sim_title = 'Simulation scenario 6',true_model = true_model,
+                      model_params_true = NULL,
+                      prior_model_params = prior_model_params,use_SoC_data = T,
+                      idiosyncratic = F,plot_vstar = T,MTT = MTT, TEL = TEL)
+```
+
+## Simulation 7
+
+Same as simulation 4 except with exponentially distributed venom volume
+
+```{r simulation_scenario_7}
+true_alpha_tox = logit(1/1000)  # toxicity at 1 vial
+true_MTD = 60  # simulation truth for the MTD 
+true_beta_tox = solve_beta(alpha_val = true_alpha_tox, v_star = true_MTD, y_star = MTT)
+
+true_rate = 1/10
+# mis-specified simulation truth
+true_model = list(eff = approxfun(x =0:200, y = pexp(q = 0:200, rate = true_rate), rule = 2),
+                  tox = approxfun(x = 0:500, 
+                                  y = inv.logit(true_alpha_tox + true_beta_tox*log2(0:500)),rule=2))
+optimal_doses[7] = qexp(p = TEL, rate = true_rate)
+
+tic()
+Full_Simulation(model_params_true = NULL,
+                true_model = true_model,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 7',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'model_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+
+Full_Simulation(model_params_true = NULL,
+                true_model = true_model,
+                prior_model_params = prior_model_params,
+                N_trials = N_trials,
+                MTT = MTT, TEL = TEL,
+                N_max = N_max,
+                N_batch = N_batch,
+                max_increment = max_increment,
+                Randomisation_p_SOC = Randomisation_p_SOC,
+                sim_title = 'Simulation scenario 7',
+                FORCE_RERUN=FORCE_RERUN,
+                N_cores = N_cores,
+                design_type = 'rule_based',
+                starting_dose = starting_dose,
+                SoC = SoC,
+                use_SoC_data = T)
+toc()
+
+compare_rule_vs_model(sim_title = 'Simulation scenario 7',true_model = true_model,
+                      model_params_true = NULL,
+                      prior_model_params = prior_model_params,
+                      use_SoC_data = T, idiosyncratic = F,plot_vstar = T,
+                      MTT = MTT, TEL = TEL)
+```
+
+# Summary of all trials
+
+```{r summary_sim_studies}
+specification_type = 'well_specified'
+mypallete = brewer.pal(9,'Set1')[c(1,2,7)]
+par(las=1,bty='n')
+layout(mat = matrix(data = c(1,1,1,2,2,2,3,3,3,4,4,4,5,5,6,6,7,7),nrow = 3,byrow = T))
+for(ss in 1:7){
+  if(ss>4) specification_type = 'mis_specified'
+  f_name_rule = paste('SimulationOutputs/', 'Simulation scenario ', ss, 
+                      '_', 'rule_based', '_', specification_type, 
+                      '_', 'All_data', '.RData', sep = '')
+  f_name_model = paste('SimulationOutputs/','Simulation scenario ', ss,
+                       '_','model_based', '_', specification_type, 
+                       '_', 'All_data', '.RData', sep = '')
+  load(f_name_model)
+  Summary_model = Summary_trials
+  load(f_name_rule)
+  Summary_rule = Summary_trials
+  rm(Summary_trials)
+  
+  Summary_model_opt = Summary_model[, grep('assigned_dose', colnames(Summary_model))]
+  opt_dose = optimal_doses[ss]
+  
+  Summary_model_opt_qs = 10* (apply(Summary_model_opt,1,quantile,probs = c(0.025,0.975),na.rm=T) - opt_dose)
+  Summary_rule_opt_qs = 10 * (apply(Summary_rule,1,quantile,probs = c(0.025,0.975),na.rm=T) - opt_dose)
+  
+  plot(10*(rowMeans(Summary_model_opt,na.rm=T) - opt_dose), type='l', lwd=3, 
+       ylim=range(c(0,Summary_model_opt_qs)),col=mypallete[2],
+       xlab='Number of patients enrolled', 
+       ylab = 'Difference from optimal (mL)')
+  polygon(x = c(1:nrow(Summary_model),rev(1:nrow(Summary_model))), 
+          y = c(Summary_model_opt_qs[1,], rev(Summary_model_opt_qs[2,])), 
+          col = adjustcolor(mypallete[2],alpha.f = .2), border = NA)
+ 
+  lines(10*(rowMeans(Summary_rule,na.rm=T) - opt_dose), lwd=3, lty=2,col=mypallete[3])
+  polygon(x = c(1:nrow(Summary_model),rev(1:nrow(Summary_model))), 
+          y = c(Summary_rule_opt_qs[1,], rev(Summary_rule_opt_qs[2,])), 
+          col = adjustcolor(mypallete[3],alpha.f = .2), border = NA)
+  mtext(text = ss,side = 3,line = 1,adj = 0)
+  abline(h=0, col=1)
+  
+  if(ss==1){
+    legend('topright',col = mypallete[2:3], legend = c('Model based', 'Rule based'),
+           cex=1.2,lwd=3,lty=1:2)
+  }
+}
+```
 
