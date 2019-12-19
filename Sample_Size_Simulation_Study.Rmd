@@ -504,7 +504,7 @@ compare_rule_vs_model(sim_title = 'Simulation scenario 7',true_model = true_mode
 ```{r summary_sim_studies}
 specification_type = 'well_specified'
 mypallete = brewer.pal(9,'Set1')[c(1,2,7)]
-par(las=1,bty='n')
+par(las=1,bty='n',family = 'serif', cex.lab=1.5, cex.axis=1.5)
 layout(mat = matrix(data = c(1,1,1,2,2,2,3,3,3,4,4,4,5,5,6,6,7,7),nrow = 3,byrow = T))
 for(ss in 1:7){
   if(ss>4) specification_type = 'mis_specified'

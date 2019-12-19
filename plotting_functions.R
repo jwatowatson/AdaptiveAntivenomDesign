@@ -141,7 +141,7 @@ compare_rule_vs_model = function(sim_title,
   plot(1:nrow(Summary_MTD), log2(Summary_MTD[,1]),
        type='n', main = '', yaxt='n',
        ylim= range(c(q_upperMTD,q_lowerMTD,q_upperTED,q_lowerTED)),
-       xlab = 'Patient recruitment index', ylab = 'Dose (mL)')
+       xlab = 'Number of patients enrolled', ylab = 'Dose (mL)')
   my_ys = log2(c(10,100, 200, 400, 800, 1200)/10)
   axis(2, at = my_ys, labels = 10 * 2^(my_ys))
   out = Estimate_log2_Vstar(model_params = model_params_true,
@@ -186,7 +186,7 @@ compare_rule_vs_model = function(sim_title,
        type='n', main = '', 
        ylim=range(c(q_upper_rule,q_lower_rule,q_upper_model,q_lower_model)),
        xlim=c(1,nrow(Summary_assigned_model)),
-       xlab = 'Patient recruitment index', ylab = 'Dose (mL)')
+       xlab = 'Number of patients enrolled', ylab = 'Dose (mL)')
   mtext(text = 'c',side = 3,line = 2,at = 0,cex = 2)
   
   abline(h = vstar,col=mypallete[1],lwd=3)
@@ -209,7 +209,7 @@ compare_rule_vs_model = function(sim_title,
   } else {
     SoC_legend = ' (adaptive data)'
   }
-  legend('topleft', legend = c(paste('Model-based',SoC_legend),'Rule-based'), title = 'Assigned dose',
+  legend('topleft', legend = c(paste('Model based',SoC_legend),'Rule based'), title = 'Assigned dose',
          lwd = 2, lty=1, inset=0.01, bty='y', bg = 'white', col=mypallete[c(2,3)])
   
   # ******* Compare final doses: histogram *******
@@ -233,7 +233,7 @@ compare_rule_vs_model = function(sim_title,
             breaks = my_breaks,plot = F)
   
   hist(x = last_dose_model, 
-       xlab = paste('Dose assigned to patient',nrow(Summary_assigned_model), '(mL)',sep=' '), 
+       xlab = 'Dose assigned to last patient (mL)', 
        ylab = '',  main = '', freq = F,
        col=adjustcolor(col = mypallete[2],alpha.f = .3),yaxt='n',
        breaks = my_breaks, ylim=c(0,max(c(h1$density,h2$density))))
@@ -243,7 +243,7 @@ compare_rule_vs_model = function(sim_title,
   abline(v=vstar, col=mypallete[1],lwd=3)
   mtext(text = 'd',side = 3,line = 2,at = min_v,cex = 2)
   
-  legend('topright', legend = c('Model-based','Rule-based'), title = 'Final dose',
+  legend('topright', legend = c('Model based','Rule based'), title = 'Final dose',
         inset=0.01, bty='y', bg = 'white', 
         fill= adjustcolor(mypallete[c(2,3)],alpha.f = .3))
   
