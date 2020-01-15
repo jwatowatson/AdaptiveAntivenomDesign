@@ -71,7 +71,7 @@ plot_prior_versus_truth = function(model_params_true,
   }
   
   
-  legend('topright',col= c(mypallete[c(3,8,1,5)],'red','red'),bg = 'white',bty='y',cex = 1,
+  legend('topleft',col= c(mypallete[c(3,8,1,5)],'red','red'),bg = 'white',bty='y',cex = .8,
          legend = c('True efficacy','Prior efficacy estimate',
                     'True toxicity', 'Prior toxicity estimate', 
                     'True optimal dose', 'Prior optimal dose'),
@@ -209,8 +209,9 @@ compare_rule_vs_model = function(sim_title,
   } else {
     SoC_legend = ' (adaptive data)'
   }
-  legend('topleft', legend = c(paste('Model based',SoC_legend),'Rule based'), title = 'Assigned dose',
-         lwd = 2, lty=1, inset=0.01, bty='y', bg = 'white', col=mypallete[c(2,3)])
+  legend('topright', legend = c(paste('Model based',SoC_legend),'Rule based'), 
+         title = 'Assigned dose',
+         lwd = 2, lty=1, inset=0.01, bty='n', bg = 'white', col=mypallete[c(2,3)])
   
   # ******* Compare final doses: histogram *******
   # Histogram of final assigned dose
@@ -244,7 +245,7 @@ compare_rule_vs_model = function(sim_title,
   mtext(text = 'd',side = 3,line = 2,at = min_v,cex = 2)
   
   legend('topright', legend = c('Model based','Rule based'), title = 'Final dose',
-        inset=0.01, bty='y', bg = 'white', 
+        inset=0.01, bty='n', bg = 'white', 
         fill= adjustcolor(mypallete[c(2,3)],alpha.f = .3))
   
   within10percent_rule = round(100*mean(last_dose_rule >= vstar-.1*vstar & last_dose_rule <= vstar+.1*vstar))

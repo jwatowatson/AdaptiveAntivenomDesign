@@ -1,7 +1,7 @@
 ---
 title: "Simulation study comparing rule-based and model-based adaptive designs"
 author: "James Watson"
-date: "October 10, 2019"
+date: "January, 2020"
 output:
   html_document:
     df_print: paged
@@ -543,7 +543,7 @@ for(ss in 1:7){
   
   if(ss==1){
     legend('topright',col = mypallete[2:3], legend = c('Model based', 'Rule based'),
-           cex=1.2,lwd=3,lty=1:2)
+           cex=1.2,lwd=3,lty=1:2, bty='n')
   }
 }
 ```
