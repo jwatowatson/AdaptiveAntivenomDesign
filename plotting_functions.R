@@ -119,7 +119,7 @@ compare_rule_vs_model = function(sim_title,
   qu=.95
   ql=.05
   
-  par(mfrow=c(2,2), las=1, bty='n', family = 'serif', cex.lab=1.5, cex.axis=1.5, mar=c(5,5,4,2))
+  par(mfrow=c(1,1), las=1, bty='n', family = 'serif', cex.lab=1.5, cex.axis=1.5, mar=c(5,5,4,2))
   # ******* Plot the prior versus the simulation truth *********
   plot_prior_versus_truth(model_params_true = model_params_true,
                           true_model = true_model,
