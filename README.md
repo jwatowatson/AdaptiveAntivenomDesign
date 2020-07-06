@@ -3,7 +3,7 @@
 ## Overview
 
 This repository has a set of R scripts which simulate antivenom dose-finding trials under adaptive designs.
-The main design of interest is a model-based adaptive design. For comparison, we also have coded up a modified `3+' design.
+The main design of interest is a model-based adaptive design. For comparison, we also have coded up a modified `3+3' cumulative cohort design.
 
 
 ## Background
@@ -24,5 +24,5 @@ The workhorse scripts can be found in the file *Simulation_functions.R*
 
 ## Output of main scripts
 
-The main RMarkdown file runs 7 simulation scenarios as detailed in the paper - see preprint at XXX.
+The main RMarkdown file runs 7 simulation scenarios as detailed in the paper - see [preprint](https://www.biorxiv.org/content/10.1101/2020.02.06.936815v1.abstract).
 
