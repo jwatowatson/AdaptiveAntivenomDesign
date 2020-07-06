@@ -43,6 +43,7 @@ estimate_posterior_params = function(Trial_data,
       Trial_data = dplyr::filter(Trial_data, Randomisation_code==1)
     }
   } 
+  # sample from the posterior
   my_fit = sampling(dose_response_model,
                     data = list(N = nrow(Trial_data),
                                 y_tox = as.integer(Trial_data$tox_outcome),
@@ -61,12 +62,12 @@ estimate_posterior_params = function(Trial_data,
   
   model_params = summary(my_fit, probs = NA)$summary
   
+  # extract mean parameter values
   posterior_model_params = list(beta_tox = model_params['beta_t','mean'],
                                 alpha_tox=  model_params['alpha_t','mean'],
                                 mu_antivenom = model_params['mu_antivenom','mean'], 
                                 sd_antivenom = model_params['sd_antivenom','mean'])
   return(posterior_model_params)
-  
 }
 
 # The escalation and de-escalation rules for the rule-based design

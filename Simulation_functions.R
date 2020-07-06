@@ -36,7 +36,7 @@ generate_sim_truth_outcomes = function(log2_doses,
   return(out)
 }
 
-# generate outcomes under the simulation model truth
+# generate trial simulated data under the simulation model truth
 Generate_outcomes = function(model_params, 
                              true_model,
                              log2_dose, 
