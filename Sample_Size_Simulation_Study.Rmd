@@ -23,7 +23,7 @@ library(boot)
 library(rstan) 
 library(doParallel)
 library(foreach)
-FORCE_RERUN = F
+FORCE_RERUN = T
 N_cores = 8
 
 source('dose_response_model_stan.R') # compile stan dose-response model
